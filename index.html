@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CRz Control Diario</title>
+<meta name="description" content="Control diario de efectivo, depósitos y premios por cobrador.">
+<meta name="theme-color" content="#0f766e">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+:root{
+  --bg:#f1f5f4; --bg2:#e6eeec; --card:#ffffff; --line:#dbe5e2; --txt:#0f1f1c; --mut:#5d706b;
+  --pri:#0f766e; --pri2:#14b8a6; --priTxt:#ffffff; --soft:#e0f2ef;
+  --ok:#15803d; --okSoft:#dcfce7; --bad:#b91c1c; --badSoft:#fee2e2; --warn:#b45309; --warnSoft:#fef3c7;
+  --gold:#a16207; --goldSoft:#fef9c3;
+  --sh:0 1px 2px rgba(15,31,28,.06),0 4px 14px rgba(15,31,28,.06);
+  --r:16px;
+}
+:root[data-theme="dark"]{
+  --bg:#0b1220; --bg2:#0f1a2c; --card:#131f33; --line:#22324c; --txt:#e8f0ef; --mut:#93a6b5;
+  --pri:#14b8a6; --pri2:#2dd4bf; --priTxt:#04201d; --soft:#0f2e33;
+  --ok:#4ade80; --okSoft:#0f2e1f; --bad:#f87171; --badSoft:#3a1518; --warn:#fbbf24; --warnSoft:#33270d;
+  --gold:#facc15; --goldSoft:#2e2a0e;
+  --sh:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,sans-serif;min-height:100vh;padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+.num,.money{font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+input,select{font:inherit;color:var(--txt)}
+.wrap{max-width:760px;margin:0 auto;padding:0 14px}
+
+/* Header */
+header{position:sticky;top:0;z-index:20;background:linear-gradient(135deg,#0f766e,#115e59 60%,#134e4a);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 0 12px;box-shadow:0 4px 18px rgba(0,0,0,.18)}
+.hrow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand img{width:34px;height:34px;border-radius:9px}
+.brand b{font-size:17px;letter-spacing:.2px;display:block}
+.brand small{opacity:.8;font-size:12px}
+.hbtn{width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,.14);display:grid;place-items:center;font-size:18px}
+.datebar{display:flex;align-items:center;gap:6px;margin-top:10px}
+.datebar .hbtn{flex:0 0 38px}
+.dfield{flex:1;display:flex;align-items:center;background:rgba(255,255,255,.16);border-radius:12px;height:38px;padding:0 6px 0 12px;min-width:0}
+.dfield input{background:none;border:0;outline:0;color:#fff;font-size:16px;font-weight:600;width:100%;min-width:0;letter-spacing:.5px}
+.dfield input::placeholder{color:rgba(255,255,255,.6)}
+.dfield .dname{font-size:12px;opacity:.85;white-space:nowrap;margin-right:6px}
+.dfield button{color:#fff;font-size:17px;padding:4px}
+.today{background:#fff;color:#0f766e;font-weight:700;border-radius:12px;height:38px;padding:0 12px;font-size:14px}
+.today[disabled]{opacity:.5}
+.hidden-date{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+
+/* Bottom nav */
+nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:30;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom)}
+nav.tabs .in{display:flex;max-width:760px;width:100%}
+nav.tabs button{flex:1;padding:8px 0 9px;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--mut);font-size:12px;font-weight:600}
+nav.tabs button .ic{font-size:21px;line-height:1;filter:grayscale(.6);opacity:.8}
+nav.tabs button.on{color:var(--pri)}
+nav.tabs button.on .ic{filter:none;opacity:1;transform:translateY(-1px)}
+
+/* Cards */
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);padding:14px;margin:14px 0;border:1px solid var(--line)}
+.card h3{margin:0 0 10px;font-size:15px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card h3 .sub{font-weight:500;color:var(--mut);font-size:12px}
+.sect{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);margin:12px 0 6px}
+
+/* Chips */
+.chips{display:flex;gap:8px;overflow-x:auto;padding:14px 0 2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:8px 12px;text-align:left;box-shadow:var(--sh);min-width:118px}
+.chip b{display:block;font-size:13px;white-space:nowrap}
+.chip span{font-size:12px;color:var(--mut);white-space:nowrap}
+.chip.on{background:var(--pri);border-color:var(--pri);color:var(--priTxt)}
+.chip.on span{color:var(--priTxt);opacity:.85}
+.chip.new{border-style:dashed}
+.badge{display:inline-block;background:var(--goldSoft);color:var(--gold);font-size:10px;font-weight:800;border-radius:6px;padding:1px 5px;margin-left:4px;vertical-align:1px}
+.chip.on .badge{background:rgba(255,255,255,.25);color:inherit}
+
+/* Hero total */
+.hero{border-radius:var(--r);padding:16px;background:linear-gradient(135deg,var(--soft),var(--card));border:1px solid var(--line);margin-bottom:12px}
+.hero .lbl{font-size:12px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.6px}
+.hero .big{font-size:32px;font-weight:800;color:var(--pri);line-height:1.15;margin-top:2px;word-break:break-word}
+.hero .big small{font-size:15px;font-weight:700;opacity:.8;margin-right:4px}
+.hero .words{font-size:12.5px;color:var(--mut);margin-top:4px;font-style:italic}
+.hero.gold{background:linear-gradient(135deg,var(--goldSoft),var(--card))}
+.hero.gold .big{color:var(--gold)}
+
+/* Denomination rows */
+.den{display:grid;grid-template-columns:1fr 92px 1fr;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line)}
+.den:last-of-type{border-bottom:0}
+.den .face{display:flex;align-items:center;gap:8px;font-weight:700}
+.den .face i{font-style:normal;font-size:11px;font-weight:700;border-radius:6px;padding:2px 6px;background:var(--soft);color:var(--pri)}
+.den .face i.m{background:var(--warnSoft);color:var(--warn)}
+.den .sub{text-align:right;font-weight:600}
+.den .sub.z{color:var(--mut);font-weight:400}
+.qty{width:100%;height:42px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);text-align:center;font-size:18px;font-weight:700;outline:0}
+.qty:focus{border-color:var(--pri);background:var(--card);box-shadow:0 0 0 3px color-mix(in srgb,var(--pri) 20%,transparent)}
+.subt{display:flex;justify-content:space-between;padding:8px 10px;margin-top:6px;border-radius:10px;background:var(--bg2);font-weight:700}
+.tot{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:12px;margin-top:10px;border-radius:12px;background:var(--pri);color:var(--priTxt);font-weight:800;font-size:17px}
+.tot span:last-child{white-space:nowrap}
+
+/* Lists */
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 2px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .l{min-width:0}
+.row .l b{display:block}
+.row .l small{color:var(--mut)}
+.row .r{text-align:right;font-weight:700;white-space:nowrap}
+.grp{border:1px solid var(--line);border-radius:12px;padding:0 10px;margin:8px 0;background:var(--bg)}
+.grp .gh{display:flex;justify-content:space-between;font-weight:800;padding:9px 0 7px;color:var(--pri);border-bottom:1px solid var(--line)}
+.grp .row:last-child{border-bottom:0}
+.chip .cg{display:block;font-size:10.5px;font-weight:700;opacity:.75;text-transform:uppercase;letter-spacing:.4px}
+.row.total{border-top:2px solid var(--txt);border-bottom:0;margin-top:2px;font-size:16px}
+.pos{color:var(--ok)} .neg{color:var(--bad)}
+.bar{height:6px;border-radius:4px;background:var(--bg2);margin-top:5px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--pri2);border-radius:4px}
+.bar.g i{background:#eab308}
+
+/* Money input */
+.minput{display:flex;align-items:center;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);height:42px;padding:0 10px;gap:6px}
+.minput:focus-within{border-color:var(--pri);background:var(--card)}
+.minput span{color:var(--mut);font-size:13px;font-weight:700}
+.minput input{border:0;outline:0;background:none;width:100%;text-align:right;font-size:17px;font-weight:700}
+.dep{display:grid;grid-template-columns:1fr 1.2fr;gap:10px;align-items:center;padding:5px 0}
+.dep label{font-weight:600}
+
+/* Premios */
+.addbox{display:flex;gap:8px}
+.addbox .minput{flex:1;height:52px}
+.addbox .minput input{font-size:22px}
+.btn{height:42px;border-radius:12px;padding:0 14px;font-weight:700;background:var(--bg2);border:1px solid var(--line)}
+.btn.pri{background:var(--pri);color:var(--priTxt);border-color:var(--pri)}
+.btn.bad{background:var(--badSoft);color:var(--bad);border-color:transparent}
+.btn.big{height:52px;min-width:96px;font-size:16px}
+.btn.sm{height:34px;padding:0 10px;font-size:13px;border-radius:10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.prl{counter-reset:p}
+.pr{display:grid;grid-template-columns:34px 1fr auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.pr:last-child{border-bottom:0}
+.pr .n{width:28px;height:28px;border-radius:9px;background:var(--goldSoft);color:var(--gold);display:grid;place-items:center;font-size:12px;font-weight:800}
+.pr .m{font-weight:800;font-size:16px}
+.pr .w{font-size:12px;color:var(--mut);font-style:italic;line-height:1.25}
+.pr .a{display:flex;gap:4px}
+.pr .a button{width:34px;height:34px;border-radius:10px;background:var(--bg2);font-size:15px}
+.pr.edit{background:var(--warnSoft);border-radius:10px;padding-left:4px}
+.empty{text-align:center;color:var(--mut);padding:18px 6px;font-size:14px}
+
+/* Resumen */
+.seg{display:flex;background:var(--bg2);border-radius:14px;padding:4px;gap:4px;margin-top:14px;overflow-x:auto}
+.seg button{flex:1;padding:8px 6px;border-radius:10px;font-weight:700;font-size:13px;color:var(--mut);white-space:nowrap}
+.seg button.on{background:var(--card);color:var(--pri);box-shadow:var(--sh)}
+.pnav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px}
+.pnav .lbl{text-align:center;font-weight:700;flex:1}
+.pnav .lbl small{display:block;color:var(--mut);font-weight:500;font-size:12px}
+.pnav button{width:38px;height:38px;border-radius:12px;background:var(--card);border:1px solid var(--line);font-size:16px}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:var(--sh)}
+.kpi .lbl{font-size:11.5px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
+.kpi .v{font-size:19px;font-weight:800;margin-top:2px;word-break:break-word}
+.kpi .s{font-size:12px;color:var(--mut)}
+.kpi.ef .v{color:var(--pri)} .kpi.kpr .v{color:var(--gold)}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:right;color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.4px;padding:6px 4px;border-bottom:1px solid var(--line)}
+.tbl th:first-child,.tbl td:first-child{text-align:left}
+.tbl td{text-align:right;padding:8px 4px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl tr.clk{cursor:pointer}
+.tbl tr.clk:active{background:var(--bg2)}
+.tbl tfoot td{font-weight:800;border-top:2px solid var(--txt);border-bottom:0}
+.tscroll{overflow-x:auto;margin:0 -4px}
+.rango{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.rango label{font-size:12px;color:var(--mut);font-weight:700}
+.tfield{display:flex;align-items:center;border:1.5px solid var(--line);border-radius:12px;background:var(--card);height:42px;padding:0 4px 0 10px}
+.tfield input{border:0;outline:0;background:none;width:100%;font-size:16px;font-weight:600}
+.tfield button{font-size:17px;padding:4px 6px}
+
+/* Ajustes */
+.set{display:grid;grid-template-columns:1fr 104px auto;gap:8px;align-items:center;padding:6px 0}
+.set input[type=text]{height:40px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);padding:0 10px;width:100%;outline:0}
+.set input[type=text]:focus{border-color:var(--pri)}
+.set.off input[type=text]{opacity:.55;text-decoration:line-through}
+.sw{position:relative;width:46px;height:28px}
+.sw input{opacity:0;width:0;height:0}
+.sw i{position:absolute;inset:0;background:var(--line);border-radius:20px;transition:.2s}
+.sw i:before{content:"";position:absolute;width:22px;height:22px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.sw input:checked+i{background:var(--pri)}
+.sw input:checked+i:before{transform:translateX(18px)}
+.note{font-size:12.5px;color:var(--mut);margin:6px 0 0}
+.foot{text-align:center;color:var(--mut);font-size:12px;padding:10px 0 24px}
+
+/* Toast / modal / lock */
+.toast{position:fixed;left:50%;bottom:calc(88px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:#0f1f1c;color:#fff;padding:10px 14px;border-radius:12px;font-size:14px;display:flex;gap:12px;align-items:center;opacity:0;pointer-events:none;transition:.25s;z-index:60;max-width:92vw;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.toast.show{opacity:1;transform:translateX(-50%);pointer-events:auto}
+.toast button{color:#5eead4;font-weight:800}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:70;padding:16px}
+.modal.show{display:flex}
+.modal .box{background:var(--card);border-radius:20px;padding:18px;width:100%;max-width:420px;box-shadow:0 20px 50px rgba(0,0,0,.35);margin-bottom:env(safe-area-inset-bottom)}
+.modal h4{margin:0 0 6px;font-size:17px}
+.modal p{margin:0 0 14px;color:var(--mut)}
+.modal .btns{justify-content:flex-end}
+.modal input{width:100%;height:44px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);padding:0 12px;font-size:18px;text-align:center;letter-spacing:6px;outline:0;margin-bottom:12px}
+#lock{position:fixed;inset:0;z-index:90;background:linear-gradient(160deg,#0f766e,#0b1220);color:#fff;display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px}
+#lock.show{display:flex}
+#lock img{width:72px;height:72px;border-radius:18px}
+.dots{display:flex;gap:14px}
+.dots i{width:14px;height:14px;border-radius:50%;border:2px solid #fff}
+.dots i.f{background:#fff}
+.dots.err{animation:sh .35s}
+@keyframes sh{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.pad{display:grid;grid-template-columns:repeat(3,72px);gap:14px}
+.pad button{width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;font-size:26px;font-weight:600}
+.pad button:active{background:rgba(255,255,255,.28)}
+@media (min-width:600px){ .kpis{grid-template-columns:repeat(4,1fr)} .modal{align-items:center} }
+@media print{ header,nav.tabs,.noprint{display:none!important} body{padding:0;background:#fff} .card{box-shadow:none} }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="hrow">
+      <div class="brand"><img src="icon-192.png" alt=""><div><b>CRz Control Diario</b><small id="hsub">Efectivo · Depósitos · Premios</small></div></div>
+      <div style="display:flex;gap:6px">
+        <button class="hbtn" id="btnShare" title="Compartir por WhatsApp">💬</button>
+        <button class="hbtn" id="btnTheme" title="Cambiar tema">🌙</button>
+      </div>
+    </div>
+    <div class="datebar" id="datebar">
+      <button class="hbtn" id="dPrev" aria-label="Día anterior">‹</button>
+      <div class="dfield">
+        <span class="dname" id="dName"></span>
+        <input id="dText" type="text" inputmode="numeric" autocomplete="off" placeholder="dd/mm/aaaa" maxlength="10" aria-label="Fecha">
+        <button id="dCal" aria-label="Abrir calendario">📅</button>
+        <input type="date" id="dPick" class="hidden-date" tabindex="-1">
+      </div>
+      <button class="hbtn" id="dNext" aria-label="Día siguiente">›</button>
+      <button class="today" id="dToday">Hoy</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="view"></main>
+
+<nav class="tabs"><div class="in">
+  <button data-tab="efectivo"><span class="ic">💵</span>Efectivo</button>
+  <button data-tab="premios"><span class="ic">🏆</span>Premios</button>
+  <button data-tab="resumen"><span class="ic">📊</span>Resumen</button>
+  <button data-tab="ajustes"><span class="ic">⚙️</span>Ajustes</button>
+</div></nav>
+
+<div class="toast" id="toast"><span id="toastMsg"></span><button id="toastBtn"></button></div>
+<div class="modal" id="modal"><div class="box"><h4 id="mT"></h4><p id="mP"></p><div id="mExtra"></div><div class="btns"><button class="btn" id="mNo">Cancelar</button><button class="btn pri" id="mYes">Aceptar</button></div></div></div>
+<div id="lock"><img src="icon-192.png" alt=""><b style="font-size:18px">Ingresá tu PIN</b><div class="dots" id="dots"><i></i><i></i><i></i><i></i></div><div class="pad" id="pad"></div></div>
+<input type="file" id="fileIn" accept=".json,application/json" style="display:none">
+
+<script>
+'use strict';
+/* =========================================================
+   CRz Control Diario  ·  identificador propio: crz-control-diario
+   Todos los datos se guardan en localStorage con el prefijo del
+   identificador, para no chocar con las demás apps del repositorio.
+   ========================================================= */
+const APP_ID = 'crz-control-diario';
+const APP_VER = '1.1.0';
+const K_DATA = APP_ID + ':data';
+const K_UI = APP_ID + ':ui';
+const K_SNAP = APP_ID + ':snapshot';
+
+const BILLETES = [100000, 50000, 20000, 10000, 5000, 2000];
+const MONEDAS = [1000, 500, 100, 50];
+
+const DEFAULT_CONFIG = () => ({
+  agencias: [
+    { id: 'caja', nombre: 'Agencia Caja', grupo: '', activo: true },
+    { id: 'pichi', nombre: 'Pichi', grupo: 'Ag. 17 VE', activo: true },
+    { id: 'osvaldo', nombre: 'Osvaldito', grupo: 'Ag. 17 VE', activo: true },
+    { id: 'cl', nombre: 'CL', grupo: 'Ag. 17 VE', activo: true },
+    { id: 'clsa', nombre: 'CL San Antonio', grupo: 'Ag. 26', activo: true }
+  ],
+  cobradores: [
+    { id: 'pichi', nombre: 'Pichi', grupo: 'Ag. 17 VE', activo: true },
+    { id: 'osvaldito', nombre: 'Osvaldito', grupo: 'Ag. 17 VE', activo: true },
+    { id: 'cristhian', nombre: 'CL', grupo: 'Ag. 17 VE', activo: true },
+    { id: 'clsa', nombre: 'CL San Antonio', grupo: 'Ag. 26', activo: true }
+  ],
+  depositos: [
+    { id: 'villa', nombre: 'Villa Elisa', activo: true },
+    { id: 'sanantonio', nombre: 'San Antonio', activo: true },
+    { id: 'bolt', nombre: 'Bolt', activo: true },
+    { id: 'depwb', nombre: 'Dep. WB', activo: true },
+    { id: 'corpos', nombre: 'Corpos', activo: true }
+  ],
+  tema: 'auto',
+  pin: '',
+  ultimoBackup: null
+});
+
+/* ---------- Persistencia (nunca borra datos existentes) ---------- */
+function load() {
+  let db = null;
+  try { db = JSON.parse(localStorage.getItem(K_DATA)); } catch (e) {}
+  if (!db || typeof db !== 'object') db = { v: 1, config: DEFAULT_CONFIG(), dias: {} };
+  return migrate(db);
+}
+function migrate(db) {
+  // Solo agrega lo que falte; jamás elimina ni modifica datos cargados.
+  const def = DEFAULT_CONFIG();
+  db.v = db.v || 1;
+  db.dias = db.dias || {};
+  db.config = db.config || {};
+  for (const k of Object.keys(def)) if (db.config[k] === undefined) db.config[k] = def[k];
+  for (const list of ['agencias', 'cobradores', 'depositos']) {
+    if (!Array.isArray(db.config[list])) db.config[list] = def[list];
+    db.config[list].forEach(x => { if (x.activo === undefined) x.activo = true; });
+  }
+  // v1.1: nombres corregidos y agencia (grupo) de cada cobrador.
+  // Solo cambia nombres que sigan con el valor de fábrica anterior; los datos cargados no se tocan.
+  const viejos = { agencias: { pichi: 'Ag. 17 Pichi', osvaldo: 'Ag. 17 Osvaldo', cl: 'Ag. 26 CL' }, cobradores: { cristhian: 'Cristhian León' } };
+  for (const list of ['agencias', 'cobradores', 'depositos']) {
+    db.config[list].forEach(x => {
+      const d = def[list].find(y => y.id === x.id);
+      if (viejos[list] && viejos[list][x.id] === x.nombre && d) x.nombre = d.nombre;
+      if (x.grupo === undefined) x.grupo = d && d.grupo ? d.grupo : '';
+    });
+  }
+  return db;
+}
+let saveT = null;
+function save() {
+  clearTimeout(saveT);
+  saveT = setTimeout(saveNow, 250);
+}
+function saveNow() {
+  clearTimeout(saveT);
+  try { localStorage.setItem(K_DATA, JSON.stringify(DB)); }
+  catch (e) { toast('⚠️ No se pudo guardar: memoria llena'); }
+}
+window.addEventListener('pagehide', saveNow);
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
+
+let DB = load();
+let UI = {};
+function initUI() {
+  UI = Object.assign({ tab: 'efectivo', ag: 'caja', cob: 'pichi', per: 'dia' }, readUI());
+  UI.fecha = todayISO();
+  UI.ref = UI.fecha;
+  UI.rDesde = UI.rDesde || UI.fecha; UI.rHasta = UI.rHasta || UI.fecha;
+  UI.edit = null;
+}
+function readUI() { try { return JSON.parse(localStorage.getItem(K_UI)) || {}; } catch (e) { return {}; } }
+function saveUI() { try { localStorage.setItem(K_UI, JSON.stringify({ tab: UI.tab, ag: UI.ag, cob: UI.cob, per: UI.per, rDesde: UI.rDesde, rHasta: UI.rHasta })); } catch (e) {} }
+
+/* ---------- Utilidades ---------- */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmt = n => { n = Math.round(Number(n) || 0); const s = String(Math.abs(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); return (n < 0 ? '-' : '') + s; };
+const gs = n => 'Gs. ' + fmt(n);
+const digits = s => String(s || '').replace(/\D/g, '');
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const pad2 = n => String(n).padStart(2, '0');
+function iso(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+function todayISO() { return iso(new Date()); }
+function pISO(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
+function addDays(s, n) { const d = pISO(s); d.setDate(d.getDate() + n); return iso(d); }
+function addMonths(s, n) { const d = pISO(s); const day = d.getDate(); d.setDate(1); d.setMonth(d.getMonth() + n); const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); d.setDate(Math.min(day, last)); return iso(d); }
+function dmy(s) { const [y, m, d] = s.split('-'); return d + '/' + m + '/' + y; }
+function dmyToISO(t) { const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(t); if (!m) return null; const d = new Date(+m[3], +m[2] - 1, +m[1]); if (d.getDate() !== +m[1] || d.getMonth() !== +m[2] - 1) return null; return iso(d); }
+const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const DIAS3 = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const dayName = s => DIAS[pISO(s).getDay()];
+function maskDate(v) { const d = digits(v).slice(0, 8); let o = d.slice(0, 2); if (d.length > 2) o += '/' + d.slice(2, 4); if (d.length > 4) o += '/' + d.slice(4); return o; }
+
+/* Número a letras (misma lógica que la función LETRAS de la planilla) */
+const UNI = ['', 'Un', 'Dos', 'Tres', 'Cuatro', 'Cinco', 'Seis', 'Siete', 'Ocho', 'Nueve', 'Diez', 'Once', 'Doce', 'Trece', 'Catorce', 'Quince', 'Dieciséis', 'Diecisiete', 'Dieciocho', 'Diecinueve', 'Veinte', 'Veintiún', 'Veintidós', 'Veintitrés', 'Veinticuatro', 'Veinticinco', 'Veintiséis', 'Veintisiete', 'Veintiocho', 'Veintinueve'];
+const DEC = ['', 'Diez', 'Veinte', 'Treinta', 'Cuarenta', 'Cincuenta', 'Sesenta', 'Setenta', 'Ochenta', 'Noventa', 'Cien'];
+const CEN = ['', 'Ciento', 'Doscientos', 'Trescientos', 'Cuatrocientos', 'Quinientos', 'Seiscientos', 'Setecientos', 'Ochocientos', 'Novecientos'];
+function letras(n) {
+  n = Math.floor(Math.abs(n));
+  if (n === 0) return 'Cero';
+  if (n < 30) return UNI[n];
+  if (n <= 100) return DEC[Math.floor(n / 10)] + (n % 10 ? ' y ' + letras(n % 10) : '');
+  if (n < 1000) return CEN[Math.floor(n / 100)] + (n % 100 ? ' ' + letras(n % 100) : '');
+  if (n < 2000) return 'Mil' + (n % 1000 ? ' ' + letras(n % 1000) : '');
+  if (n < 1e6) return letras(Math.floor(n / 1000)) + ' Mil' + (n % 1000 ? ' ' + letras(n % 1000) : '');
+  if (n < 2e6) return 'Un Millón' + (n % 1e6 ? ' ' + letras(n % 1e6) : '');
+  if (n < 1e12) return letras(Math.floor(n / 1e6)) + ' Millones' + (n % 1e6 ? ' ' + letras(n % 1e6) : '');
+  return fmt(n);
+}
+const enLetras = n => (n < 0 ? 'Menos ' : '') + letras(n) + ' Guaraníes';
+
+/* ---------- Modelo del día ---------- */
+function getDay(f, create) {
+  let d = DB.dias[f];
+  if (!d && create) d = DB.dias[f] = { ef: {}, dep: {}, pr: {} };
+  return d || { ef: {}, dep: {}, pr: {} };
+}
+function efAg(d, id) {
+  const c = (d.ef && d.ef[id]) || {};
+  let b = 0, m = 0;
+  BILLETES.forEach(v => b += (c[v] || 0) * v);
+  MONEDAS.forEach(v => m += (c[v] || 0) * v);
+  return { b, m, t: b + m };
+}
+function efTot(d) { return Object.keys(d.ef || {}).reduce((s, id) => s + efAg(d, id).t, 0); }
+function depTot(d) { return Object.values(d.dep || {}).reduce((s, v) => s + (v || 0), 0); }
+function prCob(d, id) { return ((d.pr && d.pr[id]) || []).reduce((s, x) => s + (x.monto || 0), 0); }
+function prCnt(d, id) { return ((d.pr && d.pr[id]) || []).length; }
+function prTot(d) { return Object.keys(d.pr || {}).reduce((s, id) => s + prCob(d, id), 0); }
+function hasData(d) { return efTot(d) || depTot(d) || prTot(d) || Object.values(d.pr || {}).some(a => a.length); }
+const cfg = () => DB.config;
+const activos = list => cfg()[list].filter(x => x.activo);
+function grupo(list, id) { const x = cfg()[list].find(x => x.id === id); return x && x.grupo ? x.grupo : ''; }
+function nomG(list, id) { const g = grupo(list, id); return nombre(list, id) + (g ? ' (' + g + ')' : ''); }
+/* Filas agrupadas por agencia (Ag. 17 VE, Ag. 26...) con subtotal de cada una */
+function filasAgrupadas(list, ids, val, tot, cls, sub) {
+  const order = [], map = {};
+  ids.forEach(id => { const g = grupo(list, id); if (!map[g]) { map[g] = []; order.push(g); } map[g].push(id); });
+  const fila = id => { const t = val(id); return `<div class="row"><div class="l" style="flex:1"><b>${esc(nombre(list, id))}</b>${sub ? `<small>${sub(id)}</small>` : ''}<div class="bar ${cls}"><i style="width:${Math.round(t / (tot || 1) * 100)}%"></i></div></div><div class="r money">${gs(t)}</div></div>`; };
+  return order.map(g => {
+    const rows = map[g].map(fila).join('');
+    if (!g) return rows;
+    const st = map[g].reduce((s, id) => s + val(id), 0);
+    return `<div class="grp"><div class="gh"><span>${esc(g)}</span><span class="money">${gs(st)}</span></div>${rows}</div>`;
+  }).join('');
+}
+function nombre(list, id) { const x = cfg()[list].find(x => x.id === id); return x ? x.nombre : id; }
+
+/* ---------- Tema ---------- */
+function applyTheme() {
+  const t = cfg().tema;
+  const dark = t === 'dark' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  $('#btnTheme').textContent = dark ? '☀️' : '🌙';
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', applyTheme);
+$('#btnTheme').onclick = () => { const dark = document.documentElement.dataset.theme === 'dark'; cfg().tema = dark ? 'light' : 'dark'; save(); applyTheme(); if (UI.tab === 'ajustes') render(); };
+
+/* ---------- Toast / modal ---------- */
+let toastT;
+function toast(msg, btn, fn, ms = 2600) {
+  $('#toastMsg').textContent = msg;
+  const b = $('#toastBtn'); b.textContent = btn || ''; b.style.display = btn ? '' : 'none';
+  b.onclick = () => { $('#toast').classList.remove('show'); fn && fn(); };
+  $('#toast').classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => $('#toast').classList.remove('show'), btn ? 5000 : ms);
+}
+function ask(title, text, okTxt = 'Aceptar', danger = false, extraHTML = '') {
+  return new Promise(res => {
+    $('#mT').textContent = title; $('#mP').textContent = text; $('#mExtra').innerHTML = extraHTML;
+    const y = $('#mYes'); y.textContent = okTxt; y.className = 'btn ' + (danger ? 'bad' : 'pri');
+    $('#modal').classList.add('show');
+    const inp = $('#mExtra input'); if (inp) setTimeout(() => inp.focus(), 50);
+    const done = v => { $('#modal').classList.remove('show'); res(v); };
+    y.onclick = () => done(inp ? inp.value : true);
+    $('#mNo').onclick = () => done(false);
+  });
+}
+
+/* ---------- Fecha del encabezado (se puede escribir con el teclado) ---------- */
+function paintDate() {
+  $('#dText').value = dmy(UI.fecha);
+  $('#dName').textContent = DIAS3[pISO(UI.fecha).getDay()];
+  $('#dToday').disabled = UI.fecha === todayISO();
+}
+function setFecha(f) { UI.fecha = f; UI.ref = f; UI.edit = null; paintDate(); render(); }
+$('#dPrev').onclick = () => setFecha(addDays(UI.fecha, -1));
+$('#dNext').onclick = () => setFecha(addDays(UI.fecha, 1));
+$('#dToday').onclick = () => setFecha(todayISO());
+bindDateText($('#dText'), () => UI.fecha, f => setFecha(f));
+bindPicker($('#dCal'), $('#dPick'), () => UI.fecha, f => setFecha(f));
+
+function bindDateText(inp, get, set) {
+  inp.addEventListener('focus', () => { inp.value = ''; });
+  inp.addEventListener('input', () => {
+    inp.value = maskDate(inp.value);
+    if (inp.value.length === 10) { const f = dmyToISO(inp.value); if (f) { set(f); inp.blur(); } else toast('Fecha no válida'); }
+  });
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
+  inp.addEventListener('blur', () => { if (!dmyToISO(inp.value)) inp.value = dmy(get()); });
+}
+function bindPicker(btn, pick, get, set) {
+  btn.addEventListener('click', () => {
+    pick.value = get();
+    try { pick.showPicker(); } catch (e) { pick.focus(); pick.click(); }
+  });
+  pick.addEventListener('change', () => { if (pick.value) set(pick.value); });
+}
+
+/* ---------- Navegación ---------- */
+$$('nav.tabs button').forEach(b => b.onclick = () => { UI.tab = b.dataset.tab; UI.edit = null; saveUI(); render(); scrollTo(0, 0); });
+function render() {
+  $$('nav.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === UI.tab));
+  $('#datebar').style.display = (UI.tab === 'efectivo' || UI.tab === 'premios') ? '' : 'none';
+  const v = $('#view');
+  if (UI.tab === 'efectivo') v.innerHTML = vEfectivo(), wEfectivo();
+  else if (UI.tab === 'premios') v.innerHTML = vPremios(), wPremios();
+  else if (UI.tab === 'resumen') v.innerHTML = vResumen(), wResumen();
+  else v.innerHTML = vAjustes(), wAjustes();
+}
+
+/* =========================================================
+   EFECTIVO
+   ========================================================= */
+function vEfectivo() {
+  const d = getDay(UI.fecha);
+  const ags = activos('agencias');
+  if (UI.ag !== 'todas' && !ags.find(a => a.id === UI.ag)) UI.ag = ags[0] ? ags[0].id : 'todas';
+  const chips = ags.map(a => `<button class="chip ${UI.ag === a.id ? 'on' : ''}" data-ag="${a.id}"><small class="cg">${esc(a.grupo || '\u00a0')}</small><b>${esc(a.nombre)}</b><span id="chip-${a.id}">${gs(efAg(d, a.id).t)}</span></button>`).join('')
+    + `<button class="chip ${UI.ag === 'todas' ? 'on' : ''}" data-ag="todas"><small class="cg">Todas</small><b>Σ Suma total</b><span id="chip-todas">${gs(efTot(d))}</span></button>`;
+  let main;
+  if (UI.ag === 'todas') main = `<div id="efTodas">${blockTodas(d)}</div>`;
+  else {
+    const a = ags.find(x => x.id === UI.ag);
+    const c = (d.ef && d.ef[a.id]) || {};
+    const row = (v, mon) => `<div class="den"><div class="face"><i class="${mon ? 'm' : ''}">${mon ? 'Moneda' : 'Billete'}</i>${fmt(v)}</div>
+      <input class="qty" data-den="${v}" type="text" inputmode="numeric" autocomplete="off" value="${c[v] || ''}" placeholder="0" aria-label="Cantidad de ${fmt(v)}">
+      <div class="sub money ${(c[v] || 0) ? '' : 'z'}" id="s-${v}">${fmt((c[v] || 0) * v)}</div></div>`;
+    const t = efAg(d, a.id);
+    main = `<div class="card">
+      <div class="hero"><div class="lbl">Total efectivo · ${esc(nomG('agencias', a.id))}</div><div class="big money" id="efBig"><small>Gs.</small>${fmt(t.t)}</div><div class="words" id="efWords">${enLetras(t.t)}</div></div>
+      <div class="sect">Billetes</div>${BILLETES.map(v => row(v, false)).join('')}
+      <div class="subt"><span>Total billetes</span><span class="money" id="efB">${gs(t.b)}</span></div>
+      <div class="sect">Monedas</div>${MONEDAS.map(v => row(v, true)).join('')}
+      <div class="subt"><span>Total monedas en caja</span><span class="money" id="efM">${gs(t.m)}</span></div>
+      <div class="tot"><span>TOTAL EFECTIVO EN CAJA</span><span class="money" id="efT">${gs(t.t)}</span></div>
+      <div class="btns noprint"><button class="btn sm" id="efClear">↺ Poner en cero esta agencia</button></div>
+    </div>`;
+  }
+  const deps = activos('depositos');
+  return `<div class="chips" id="agChips">${chips}</div>${main}
+    <div class="card"><h3>Totales por agencia <span class="sub">${dmy(UI.fecha)}</span></h3><div id="efAgs">${blockAgs(d)}</div></div>
+    <div class="card"><h3>Depósitos <span class="sub">montos en Gs.</span></h3>
+      ${deps.map(x => `<div class="dep"><label for="dep-${x.id}">${esc(x.nombre)}</label><div class="minput"><span>Gs.</span><input id="dep-${x.id}" data-dep="${x.id}" type="text" inputmode="numeric" autocomplete="off" value="${(d.dep && d.dep[x.id]) ? fmt(d.dep[x.id]) : ''}" placeholder="0"></div></div>`).join('') || '<div class="empty">No hay conceptos activos. Agregalos en Ajustes.</div>'}
+      <div id="depRes">${blockDep(d)}</div>
+    </div>`;
+}
+function blockAgs(d) {
+  const ags = activos('agencias');
+  const extra = Object.keys(d.ef || {}).filter(id => !ags.find(a => a.id === id) && efAg(d, id).t);
+  const all = ags.map(a => a.id).concat(extra);
+  const tot = efTot(d) || 1;
+  return filasAgrupadas('agencias', all, id => efAg(d, id).t, tot, '')
+    + `<div class="row total"><div class="l"><b>SUMA TOTAL</b></div><div class="r money">${gs(efTot(d))}</div></div>`;
+}
+function blockDep(d) {
+  const dep = depTot(d), ef = efTot(d), dif = dep - ef;
+  return `<div class="row total"><div class="l"><b>Total depósitos</b></div><div class="r money">${gs(dep)}</div></div>
+    <div class="row"><div class="l"><b>Menos total efectivo</b><small>Suma total de todas las agencias</small></div><div class="r money">${gs(-ef)}</div></div>
+    <div class="row"><div class="l"><b>Diferencia</b><small>${dif === 0 ? 'Cuadrado ✔' : dif > 0 ? 'Depósitos mayores al efectivo' : 'Efectivo mayor a los depósitos'}</small></div><div class="r money ${dif > 0 ? 'pos' : dif < 0 ? 'neg' : ''}" style="font-size:17px">${gs(dif)}</div></div>`;
+}
+function blockTodas(d) {
+  const sum = v => Object.keys(d.ef || {}).reduce((s, id) => s + ((d.ef[id] || {})[v] || 0), 0);
+  let b = 0, m = 0;
+  const row = (v, mon) => { const q = sum(v); mon ? m += q * v : b += q * v; return `<div class="den"><div class="face"><i class="${mon ? 'm' : ''}">${mon ? 'Moneda' : 'Billete'}</i>${fmt(v)}</div><div style="text-align:center;font-weight:800;font-size:17px">${q}</div><div class="sub money ${q ? '' : 'z'}">${fmt(q * v)}</div></div>`; };
+  const bh = BILLETES.map(v => row(v, false)).join(''), mh = MONEDAS.map(v => row(v, true)).join('');
+  return `<div class="card"><div class="hero"><div class="lbl">Suma total · todas las agencias</div><div class="big money"><small>Gs.</small>${fmt(b + m)}</div><div class="words">${enLetras(b + m)}</div></div>
+    <div class="sect">Billetes (cantidad sumada)</div>${bh}<div class="subt"><span>Total billetes</span><span class="money">${gs(b)}</span></div>
+    <div class="sect">Monedas (cantidad sumada)</div>${mh}<div class="subt"><span>Total monedas en caja</span><span class="money">${gs(m)}</span></div>
+    <div class="tot"><span>TOTAL EFECTIVO EN CAJA</span><span class="money">${gs(b + m)}</span></div></div>`;
+}
+function wEfectivo() {
+  $$('#agChips .chip').forEach(c => c.onclick = () => { UI.ag = c.dataset.ag; saveUI(); render(); });
+  const on = $('#agChips .chip.on'); if (on) on.scrollIntoView({ inline: 'center', block: 'nearest' });
+  const qs = $$('.qty');
+  qs.forEach((inp, i) => {
+    inp.addEventListener('focus', () => setTimeout(() => inp.select(), 0));
+    inp.addEventListener('input', () => {
+      const v = digits(inp.value).slice(0, 6); inp.value = v;
+      const d = getDay(UI.fecha, true); d.ef[UI.ag] = d.ef[UI.ag] || {};
+      const den = +inp.dataset.den; if (+v) d.ef[UI.ag][den] = +v; else delete d.ef[UI.ag][den];
+      save(); paintEf();
+    });
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); (qs[i + 1] || inp).focus(); if (!qs[i + 1]) inp.blur(); } });
+  });
+  bindMoney($$('[data-dep]'), (id, val) => { const d = getDay(UI.fecha, true); if (val) d.dep[id] = val; else delete d.dep[id]; save(); paintEf(); });
+  const clr = $('#efClear');
+  if (clr) clr.onclick = async () => {
+    const d = getDay(UI.fecha); const prev = d.ef && d.ef[UI.ag] ? { ...d.ef[UI.ag] } : null; if (!prev) return toast('Ya está en cero');
+    if (!await ask('Poner en cero', `¿Borrar las cantidades de ${nombre('agencias', UI.ag)} del ${dmy(UI.fecha)}?`, 'Poner en cero', true)) return;
+    const ag = UI.ag; delete d.ef[ag]; save(); render();
+    toast('Agencia en cero', 'Deshacer', () => { getDay(UI.fecha, true).ef[ag] = prev; save(); render(); });
+  };
+}
+function paintEf() {
+  const d = getDay(UI.fecha);
+  if (UI.ag !== 'todas') {
+    const c = (d.ef && d.ef[UI.ag]) || {};
+    BILLETES.concat(MONEDAS).forEach(v => { const el = $('#s-' + v); if (el) { el.textContent = fmt((c[v] || 0) * v); el.classList.toggle('z', !c[v]); } });
+    const t = efAg(d, UI.ag);
+    $('#efBig').innerHTML = '<small>Gs.</small>' + fmt(t.t); $('#efWords').textContent = enLetras(t.t);
+    $('#efB').textContent = gs(t.b); $('#efM').textContent = gs(t.m); $('#efT').textContent = gs(t.t);
+  }
+  activos('agencias').forEach(a => { const el = $('#chip-' + a.id); if (el) el.textContent = gs(efAg(d, a.id).t); });
+  $('#chip-todas').textContent = gs(efTot(d));
+  $('#efAgs').innerHTML = blockAgs(d);
+  $('#depRes').innerHTML = blockDep(d);
+}
+function bindMoney(inputs, onval) {
+  inputs.forEach(inp => {
+    inp.addEventListener('focus', () => setTimeout(() => inp.select(), 0));
+    inp.addEventListener('input', () => {
+      const v = digits(inp.value).slice(0, 13); inp.value = v ? fmt(+v) : '';
+      onval && onval(inp.dataset.dep, +v || 0);
+    });
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); const all = inputs; const i = all.indexOf(inp); (all[i + 1] || inp).focus(); if (!all[i + 1]) inp.blur(); } });
+  });
+}
+
+/* =========================================================
+   PREMIOS
+   ========================================================= */
+function vPremios() {
+  const d = getDay(UI.fecha);
+  const cobs = activos('cobradores');
+  if (!cobs.find(c => c.id === UI.cob)) UI.cob = cobs[0] ? cobs[0].id : '';
+  if (!UI.cob) return '<div class="card empty">No hay cobradores activos. Agregalos en Ajustes.</div>';
+  const chips = cobs.map(c => `<button class="chip ${UI.cob === c.id ? 'on' : ''}" data-cob="${c.id}"><small class="cg">${esc(c.grupo || '\u00a0')}</small><b>${esc(c.nombre)}<span class="badge" id="pc-${c.id}">${prCnt(d, c.id)}</span></b><span id="pt-${c.id}">${gs(prCob(d, c.id))}</span></button>`).join('');
+  const t = prCob(d, UI.cob);
+  return `<div class="chips" id="cobChips">${chips}</div>
+  <div class="card">
+    <div class="hero gold"><div class="lbl">Premios · ${esc(nomG('cobradores', UI.cob))}</div><div class="big money" id="prBig"><small>Gs.</small>${fmt(t)}</div><div class="words" id="prWords">${enLetras(t)}</div></div>
+    <div class="addbox noprint"><div class="minput"><span>Gs.</span><input id="prIn" type="text" inputmode="numeric" autocomplete="off" placeholder="0" enterkeyhint="done"></div><button class="btn pri big" id="prAdd">＋ Agregar</button></div>
+    <div class="note noprint" id="prHint">Escribí el monto y tocá Agregar (o Enter). El monto en letras se genera solo.</div>
+    <div class="sect" style="display:flex;justify-content:space-between"><span>Detalle</span><span id="prCount">${prCnt(d, UI.cob)} premio(s)</span></div>
+    <div id="prList">${listPr(d)}</div>
+  </div>
+  <div class="card"><h3>Totales de premios <span class="sub">${dmy(UI.fecha)}</span></h3><div id="prAll">${blockPrAll(d)}</div>
+    <div class="btns noprint"><button class="btn sm" id="prClear">↺ Borrar premios de ${esc(nombre('cobradores', UI.cob))}</button></div></div>`;
+}
+function listPr(d) {
+  const arr = (d.pr && d.pr[UI.cob]) || [];
+  if (!arr.length) return '<div class="empty">Todavía no hay premios cargados para este día.</div>';
+  return arr.map((x, i) => `<div class="pr ${UI.edit === x.id ? 'edit' : ''}"><div class="n">${i + 1}</div><div><div class="m money">${gs(x.monto)}</div><div class="w">${enLetras(x.monto)}</div></div>
+    <div class="a noprint"><button data-ed="${x.id}" aria-label="Editar">✎</button><button data-del="${x.id}" aria-label="Eliminar">🗑</button></div></div>`).join('');
+}
+function blockPrAll(d) {
+  const cobs = activos('cobradores');
+  const extra = Object.keys(d.pr || {}).filter(id => !cobs.find(c => c.id === id) && prCob(d, id));
+  const ids = cobs.map(c => c.id).concat(extra);
+  const tot = prTot(d);
+  return filasAgrupadas('cobradores', ids, id => prCob(d, id), tot, 'g', id => prCnt(d, id) + ' premio(s)')
+    + `<div class="row total"><div class="l"><b>TOTAL PREMIOS</b><small>${enLetras(tot)}</small></div><div class="r money">${gs(tot)}</div></div>`;
+}
+function paintPr() {
+  const d = getDay(UI.fecha), t = prCob(d, UI.cob);
+  $('#prBig').innerHTML = '<small>Gs.</small>' + fmt(t); $('#prWords').textContent = enLetras(t);
+  $('#prList').innerHTML = listPr(d); $('#prAll').innerHTML = blockPrAll(d);
+  $('#prCount').textContent = prCnt(d, UI.cob) + ' premio(s)';
+  activos('cobradores').forEach(c => { const a = $('#pt-' + c.id), b = $('#pc-' + c.id); if (a) a.textContent = gs(prCob(d, c.id)); if (b) b.textContent = prCnt(d, c.id); });
+  bindPrList();
+}
+function setEditMode() {
+  const add = $('#prAdd'), hint = $('#prHint');
+  if (UI.edit) { add.textContent = '✔ Guardar'; hint.innerHTML = 'Editando premio. <button class="btn sm" id="prCancel">Cancelar</button>'; $('#prCancel').onclick = () => { UI.edit = null; $('#prIn').value = ''; setEditMode(); paintPr(); }; }
+  else { add.textContent = '＋ Agregar'; hint.textContent = 'Escribí el monto y tocá Agregar (o Enter). El monto en letras se genera solo.'; }
+}
+function wPremios() {
+  $$('#cobChips .chip').forEach(c => c.onclick = () => { UI.cob = c.dataset.cob; UI.edit = null; saveUI(); render(); });
+  const on = $('#cobChips .chip.on'); if (on) on.scrollIntoView({ inline: 'center', block: 'nearest' });
+  const inp = $('#prIn'); if (!inp) return;
+  inp.addEventListener('input', () => { const v = digits(inp.value).slice(0, 13); inp.value = v ? fmt(+v) : ''; });
+  const add = () => {
+    const v = +digits(inp.value);
+    if (!v) { inp.focus(); return toast('Escribí un monto'); }
+    const d = getDay(UI.fecha, true); d.pr[UI.cob] = d.pr[UI.cob] || [];
+    if (UI.edit) { const x = d.pr[UI.cob].find(x => x.id === UI.edit); if (x) x.monto = v; UI.edit = null; toast('Premio actualizado'); }
+    else d.pr[UI.cob].push({ id: uid(), monto: v });
+    save(); inp.value = ''; setEditMode(); paintPr(); inp.focus();
+    const l = $('#prList'); l.lastElementChild && l.lastElementChild.scrollIntoView({ block: 'nearest' });
+  };
+  $('#prAdd').onclick = add;
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); add(); } if (e.key === 'Escape' && UI.edit) { UI.edit = null; inp.value = ''; setEditMode(); paintPr(); } });
+  bindPrList();
+  $('#prClear').onclick = async () => {
+    const d = getDay(UI.fecha); const arr = (d.pr && d.pr[UI.cob]) || []; if (!arr.length) return toast('No hay premios para borrar');
+    if (!await ask('Borrar premios', `¿Borrar los ${arr.length} premio(s) de ${nombre('cobradores', UI.cob)} del ${dmy(UI.fecha)}?`, 'Borrar', true)) return;
+    const cob = UI.cob, prev = arr.slice(); delete d.pr[cob]; save(); paintPr();
+    toast('Premios borrados', 'Deshacer', () => { getDay(UI.fecha, true).pr[cob] = prev; save(); render(); });
+  };
+}
+function bindPrList() {
+  $$('[data-del]').forEach(b => b.onclick = () => {
+    const d = getDay(UI.fecha); const arr = d.pr[UI.cob]; const i = arr.findIndex(x => x.id === b.dataset.del); if (i < 0) return;
+    const [x] = arr.splice(i, 1); if (UI.edit === x.id) { UI.edit = null; $('#prIn').value = ''; setEditMode(); }
+    save(); paintPr();
+    const cob = UI.cob, f = UI.fecha;
+    toast('Premio de ' + gs(x.monto) + ' eliminado', 'Deshacer', () => { const dd = getDay(f, true); dd.pr[cob] = dd.pr[cob] || []; dd.pr[cob].splice(i, 0, x); save(); render(); });
+  });
+  $$('[data-ed]').forEach(b => b.onclick = () => {
+    const x = getDay(UI.fecha).pr[UI.cob].find(x => x.id === b.dataset.ed); if (!x) return;
+    UI.edit = x.id; const inp = $('#prIn'); inp.value = fmt(x.monto); setEditMode(); paintPr(); inp.focus(); inp.select();
+    inp.scrollIntoView({ block: 'center' });
+  });
+}
+
+/* =========================================================
+   RESUMEN GENERAL
+   ========================================================= */
+function periodo() {
+  const r = UI.ref, p = UI.per;
+  if (p === 'dia') return { a: r, b: r, lbl: dayName(r) + ' ' + dmy(r), sub: 'Resumen diario' };
+  if (p === 'semana') { const dw = (pISO(r).getDay() + 6) % 7; const a = addDays(r, -dw), b = addDays(a, 6); return { a, b, lbl: dmy(a).slice(0, 5) + ' al ' + dmy(b), sub: 'Semana (lunes a domingo)' }; }
+  if (p === 'mes') { const d = pISO(r); const a = iso(new Date(d.getFullYear(), d.getMonth(), 1)), b = iso(new Date(d.getFullYear(), d.getMonth() + 1, 0)); return { a, b, lbl: MESES[d.getMonth()] + ' ' + d.getFullYear(), sub: 'Resumen mensual' }; }
+  if (p === 'rango') { let a = UI.rDesde, b = UI.rHasta; if (a > b) [a, b] = [b, a]; return { a, b, lbl: dmy(a) + ' al ' + dmy(b), sub: 'Rango personalizado' }; }
+  const ks = Object.keys(DB.dias).filter(k => hasData(DB.dias[k])).sort();
+  return { a: ks[0] || todayISO(), b: ks[ks.length - 1] || todayISO(), lbl: 'Total general', sub: ks.length ? 'Desde ' + dmy(ks[0]) + ' hasta ' + dmy(ks[ks.length - 1]) : 'Sin datos todavía', total: true };
+}
+function agregar(a, b) {
+  const R = { ef: 0, dep: 0, pr: 0, prN: 0, ags: {}, cobs: {}, cobsN: {}, deps: {}, dias: [], meses: {} };
+  Object.keys(DB.dias).filter(k => k >= a && k <= b).sort().forEach(k => {
+    const d = DB.dias[k]; if (!hasData(d)) return;
+    const e = efTot(d), p = prTot(d), dp = depTot(d);
+    let n = 0;
+    Object.keys(d.ef || {}).forEach(id => R.ags[id] = (R.ags[id] || 0) + efAg(d, id).t);
+    Object.keys(d.pr || {}).forEach(id => { R.cobs[id] = (R.cobs[id] || 0) + prCob(d, id); R.cobsN[id] = (R.cobsN[id] || 0) + prCnt(d, id); n += prCnt(d, id); });
+    Object.keys(d.dep || {}).forEach(id => R.deps[id] = (R.deps[id] || 0) + (d.dep[id] || 0));
+    R.ef += e; R.pr += p; R.dep += dp; R.prN += n;
+    R.dias.push({ f: k, ef: e, pr: p, dep: dp, n });
+    const mk = k.slice(0, 7); const M = R.meses[mk] = R.meses[mk] || { f: mk, ef: 0, pr: 0, dep: 0, n: 0, dias: 0 };
+    M.ef += e; M.pr += p; M.dep += dp; M.n += n; M.dias++;
+  });
+  return R;
+}
+function vResumen() {
+  const P = periodo(), R = agregar(P.a, P.b);
+  const segs = [['dia', 'Día'], ['semana', 'Semana'], ['mes', 'Mes'], ['total', 'Total'], ['rango', 'Rango']].map(([k, l]) => `<button data-per="${k}" class="${UI.per === k ? 'on' : ''}">${l}</button>`).join('');
+  const nav = (UI.per === 'total' || UI.per === 'rango') ? `<div class="pnav"><div class="lbl">${esc(P.lbl)}<small>${esc(P.sub)}</small></div></div>`
+    : `<div class="pnav"><button id="rPrev">‹</button><div class="lbl">${esc(P.lbl)}<small>${esc(P.sub)}</small></div><button id="rNext">›</button></div>`;
+  const rango = UI.per === 'rango' ? `<div class="rango">
+      <div><label>Desde</label><div class="tfield"><input id="rD" type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/aaaa" value="${dmy(UI.rDesde)}"><button id="rDc">📅</button><input type="date" id="rDp" class="hidden-date" tabindex="-1"></div></div>
+      <div><label>Hasta</label><div class="tfield"><input id="rH" type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/aaaa" value="${dmy(UI.rHasta)}"><button id="rHc">📅</button><input type="date" id="rHp" class="hidden-date" tabindex="-1"></div></div></div>` : '';
+  const nd = R.dias.length, dif = R.dep - R.ef;
+  const kpis = `<div class="kpis">
+    <div class="kpi ef"><div class="lbl">Efectivo</div><div class="v money">${gs(R.ef)}</div><div class="s">${nd > 1 ? 'Prom. diario ' + gs(R.ef / nd) : 'Todas las agencias'}</div></div>
+    <div class="kpi kpr"><div class="lbl">Premios</div><div class="v money">${gs(R.pr)}</div><div class="s">${R.prN} premio(s)${nd > 1 ? ' · prom. ' + gs(R.pr / nd) : ''}</div></div>
+    <div class="kpi"><div class="lbl">Depósitos</div><div class="v money">${gs(R.dep)}</div><div class="s">${Object.keys(R.deps).length} concepto(s)</div></div>
+    <div class="kpi"><div class="lbl">Diferencia</div><div class="v money ${dif > 0 ? 'pos' : dif < 0 ? 'neg' : ''}">${gs(dif)}</div><div class="s">Depósitos − efectivo</div></div></div>`;
+  if (!nd) return `<div class="seg" id="seg">${segs}</div>${nav}${rango}${kpis}<div class="card empty">No hay movimientos cargados en este período.</div>`;
+
+  const lista = (obj, list, tot, cls, cnt) => {
+    const ids = cfg()[list].map(x => x.id).filter(id => obj[id] !== undefined).concat(Object.keys(obj).filter(id => !cfg()[list].find(x => x.id === id)));
+    return filasAgrupadas(list, ids, id => obj[id] || 0, tot, cls, cnt ? id => (cnt[id] || 0) + ' premio(s)' : null)
+      + `<div class="row total"><div class="l"><b>TOTAL</b></div><div class="r money">${gs(tot)}</div></div>`;
+  };
+  let tabla = '';
+  if (UI.per !== 'dia') {
+    const porMes = UI.per === 'total' && Object.keys(R.meses).length > 1;
+    const rows = porMes ? Object.values(R.meses) : R.dias;
+    const max = Math.max(1, ...rows.map(r => Math.max(r.ef, r.pr)));
+    tabla = `<div class="card"><h3>${porMes ? 'Detalle por mes' : 'Detalle por día'} <span class="sub">${porMes ? 'tocá un mes para verlo' : 'tocá un día para abrirlo'}</span></h3><div class="tscroll"><table class="tbl">
+      <thead><tr><th>${porMes ? 'Mes' : 'Fecha'}</th><th>Efectivo</th><th>Premios</th><th>Depósitos</th></tr></thead><tbody>
+      ${rows.map(r => `<tr class="clk" data-${porMes ? 'mes' : 'dia'}="${r.f}"><td><b>${porMes ? MESES[+r.f.slice(5) - 1].slice(0, 3) + ' ' + r.f.slice(0, 4) : DIAS3[pISO(r.f).getDay()] + ' ' + dmy(r.f).slice(0, 5)}</b>
+        <div class="bar" style="width:90px"><i style="width:${Math.round(r.ef / max * 100)}%"></i></div><div class="bar g" style="width:90px;margin-top:2px"><i style="width:${Math.round(r.pr / max * 100)}%"></i></div></td>
+        <td class="money">${fmt(r.ef)}</td><td class="money">${fmt(r.pr)}</td><td class="money">${fmt(r.dep)}</td></tr>`).join('')}
+      </tbody><tfoot><tr><td>Total (${porMes ? rows.length + ' meses' : nd + ' días'})</td><td class="money">${fmt(R.ef)}</td><td class="money">${fmt(R.pr)}</td><td class="money">${fmt(R.dep)}</td></tr></tfoot></table></div></div>`;
+  }
+  return `<div class="seg" id="seg">${segs}</div>${nav}${rango}${kpis}
+    <div class="card"><h3>💵 Efectivo por agencia</h3>${lista(R.ags, 'agencias', R.ef, '')}</div>
+    <div class="card"><h3>🏆 Premios por cobrador</h3>${lista(R.cobs, 'cobradores', R.pr, 'g', R.cobsN)}</div>
+    ${Object.keys(R.deps).length ? `<div class="card"><h3>🏦 Depósitos por concepto</h3>${lista(R.deps, 'depositos', R.dep, '')}</div>` : ''}
+    ${tabla}
+    <div class="btns noprint" style="margin-bottom:10px"><button class="btn pri" id="rWa">💬 Enviar por WhatsApp</button><button class="btn" id="rCsv">⬇️ Exportar Excel (CSV)</button><button class="btn" id="rPrint">🖨️ Imprimir / PDF</button></div>`;
+}
+function wResumen() {
+  $$('#seg button').forEach(b => b.onclick = () => { UI.per = b.dataset.per; saveUI(); render(); });
+  const step = s => { UI.ref = UI.per === 'dia' ? addDays(UI.ref, s) : UI.per === 'semana' ? addDays(UI.ref, 7 * s) : addMonths(UI.ref, s); render(); };
+  if ($('#rPrev')) { $('#rPrev').onclick = () => step(-1); $('#rNext').onclick = () => step(1); }
+  if ($('#rD')) {
+    bindDateText($('#rD'), () => UI.rDesde, f => { UI.rDesde = f; saveUI(); render(); });
+    bindDateText($('#rH'), () => UI.rHasta, f => { UI.rHasta = f; saveUI(); render(); });
+    bindPicker($('#rDc'), $('#rDp'), () => UI.rDesde, f => { UI.rDesde = f; saveUI(); render(); });
+    bindPicker($('#rHc'), $('#rHp'), () => UI.rHasta, f => { UI.rHasta = f; saveUI(); render(); });
+  }
+  $$('[data-dia]').forEach(tr => tr.onclick = () => { UI.per = 'dia'; UI.ref = tr.dataset.dia; saveUI(); render(); scrollTo(0, 0); });
+  $$('[data-mes]').forEach(tr => tr.onclick = () => { UI.per = 'mes'; UI.ref = tr.dataset.mes + '-01'; saveUI(); render(); scrollTo(0, 0); });
+  if ($('#rWa')) {
+    $('#rWa').onclick = () => shareText(textoResumen());
+    $('#rCsv').onclick = exportCSV;
+    $('#rPrint').onclick = () => print();
+  }
+}
+function textoResumen() {
+  const P = periodo(), R = agregar(P.a, P.b);
+  const L = [`*CRz Control Diario*`, `📅 ${P.lbl}${P.total ? ' (' + P.sub + ')' : ''}`, ''];
+  L.push('*💵 Efectivo por agencia*');
+  Object.keys(R.ags).forEach(id => L.push(`• ${nomG('agencias', id)}: ${gs(R.ags[id])}`));
+  L.push(`*Total efectivo: ${gs(R.ef)}*`, '');
+  if (Object.keys(R.deps).length) { L.push('*🏦 Depósitos*'); Object.keys(R.deps).forEach(id => L.push(`• ${nombre('depositos', id)}: ${gs(R.deps[id])}`)); L.push(`*Total depósitos: ${gs(R.dep)}*`, `Diferencia: ${gs(R.dep - R.ef)}`, ''); }
+  L.push('*🏆 Premios por cobrador*');
+  Object.keys(R.cobs).forEach(id => L.push(`• ${nomG('cobradores', id)}: ${gs(R.cobs[id])} (${R.cobsN[id]})`));
+  L.push(`*Total premios: ${gs(R.pr)}*`);
+  return L.join('\n');
+}
+function textoDia() {
+  const d = getDay(UI.fecha);
+  const L = [`*CRz Control Diario*`, `📅 ${dayName(UI.fecha)} ${dmy(UI.fecha)}`, ''];
+  if (UI.tab === 'premios') {
+    const arr = (d.pr && d.pr[UI.cob]) || [];
+    L.push(`*🏆 Premios ${nomG('cobradores', UI.cob)}*`);
+    arr.forEach((x, i) => L.push(`${i + 1}. ${gs(x.monto)}`));
+    L.push(`*Total: ${gs(prCob(d, UI.cob))}*`, `_${enLetras(prCob(d, UI.cob))}_`, '', `Total premios del día (todos): ${gs(prTot(d))}`);
+    return L.join('\n');
+  }
+  L.push('*💵 Efectivo*');
+  activos('agencias').forEach(a => L.push(`• ${nomG('agencias', a.id)}: ${gs(efAg(d, a.id).t)}`));
+  L.push(`*Suma total: ${gs(efTot(d))}*`, '');
+  if (depTot(d)) { L.push('*🏦 Depósitos*'); activos('depositos').forEach(x => d.dep[x.id] && L.push(`• ${x.nombre}: ${gs(d.dep[x.id])}`)); L.push(`*Total depósitos: ${gs(depTot(d))}*`, `Diferencia: ${gs(depTot(d) - efTot(d))}`, ''); }
+  L.push(`🏆 Total premios: ${gs(prTot(d))}`);
+  return L.join('\n');
+}
+function shareText(t) {
+  if (navigator.share && /Android|iPhone|iPad/i.test(navigator.userAgent)) navigator.share({ text: t }).catch(() => {});
+  else open('https://wa.me/?text=' + encodeURIComponent(t), '_blank');
+}
+$('#btnShare').onclick = () => shareText(UI.tab === 'resumen' ? textoResumen() : textoDia());
+function exportCSV() {
+  const P = periodo();
+  const ags = cfg().agencias, cobs = cfg().cobradores, deps = cfg().depositos;
+  const head = ['Fecha', 'Día'].concat(ags.map(a => 'Efectivo ' + nomG('agencias', a.id)), ['Total efectivo'], deps.map(x => 'Dep. ' + x.nombre), ['Total depósitos', 'Diferencia'], cobs.map(c => 'Premios ' + nomG('cobradores', c.id)), ['Total premios', 'Cant. premios']);
+  const rows = [head];
+  Object.keys(DB.dias).filter(k => k >= P.a && k <= P.b && hasData(DB.dias[k])).sort().forEach(k => {
+    const d = DB.dias[k];
+    rows.push([dmy(k), dayName(k)].concat(ags.map(a => efAg(d, a.id).t), [efTot(d)], deps.map(x => (d.dep || {})[x.id] || 0), [depTot(d), depTot(d) - efTot(d)], cobs.map(c => prCob(d, c.id)), [prTot(d), Object.keys(d.pr || {}).reduce((s, id) => s + prCnt(d, id), 0)]));
+  });
+  const csv = '﻿' + rows.map(r => r.map(v => typeof v === 'number' ? v : '"' + String(v).replace(/"/g, '""') + '"').join(';')).join('\r\n');
+  download(csv, `control-diario_${P.a}_${P.b}.csv`, 'text/csv;charset=utf-8');
+}
+function download(content, name, type) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content], { type })); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+
+/* =========================================================
+   AJUSTES
+   ========================================================= */
+const LISTAS = [['agencias', '💵 Agencias (efectivo)', 'Nueva agencia'], ['cobradores', '🏆 Cobradores (premios)', 'Nuevo cobrador'], ['depositos', '🏦 Conceptos de depósito', 'Nuevo concepto']];
+function vAjustes() {
+  const c = cfg();
+  const nDias = Object.keys(DB.dias).filter(k => hasData(DB.dias[k])).length;
+  return `
+  <div class="card"><h3>🎨 Apariencia</h3><div class="seg" style="margin-top:0" id="tema">${[['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Oscuro']].map(([k, l]) => `<button data-t="${k}" class="${c.tema === k ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+  ${LISTAS.map(([k, t, nuevo]) => `<div class="card"><h3>${t}<span class="sub">${k === 'depositos' ? 'activo' : 'nombre · agencia · activo'}</span></h3>
+    ${c[k].map(x => `<div class="set ${x.activo ? '' : 'off'}"><input type="text" data-list="${k}" data-id="${x.id}" value="${esc(x.nombre)}" maxlength="40">${k === 'depositos' ? '<span></span>' : `<input type="text" data-grp="${k}" data-id="${x.id}" value="${esc(x.grupo || '')}" maxlength="20" placeholder="Agencia">`}<label class="sw"><input type="checkbox" data-sw="${k}" data-id="${x.id}" ${x.activo ? 'checked' : ''}><i></i></label></div>`).join('')}
+    <div class="btns"><button class="btn sm" data-add="${k}">＋ ${nuevo}</button></div>
+    ${k !== 'depositos' ? '<p class="note">La agencia (ej.: Ag. 17 VE, Ag. 26) agrupa y subtotaliza en los totales y el resumen.</p>' : ''}<p class="note">Desactivar oculta el elemento sin borrar los datos ya cargados; siguen apareciendo en el resumen.</p></div>`).join('')}
+  <div class="card"><h3>🔒 Seguridad</h3>
+    <div class="row"><div class="l"><b>PIN de acceso</b><small>${c.pin ? 'Activado · se pide al abrir la app' : 'Desactivado'}</small></div><div class="btns" style="margin:0">${c.pin ? '<button class="btn sm" id="pinChg">Cambiar</button><button class="btn sm bad" id="pinOff">Quitar</button>' : '<button class="btn sm pri" id="pinOn">Activar</button>'}</div></div></div>
+  <div class="card"><h3>💾 Respaldo</h3>
+    <div class="row"><div class="l"><b>Días con datos</b><small>Último respaldo: ${c.ultimoBackup ? new Date(c.ultimoBackup).toLocaleString('es-PY') : 'nunca'}</small></div><div class="r">${nDias}</div></div>
+    <div class="btns"><button class="btn pri" id="bkExp">⬇️ Descargar respaldo</button><button class="btn" id="bkImp">⬆️ Restaurar respaldo</button></div>
+    <p class="note">Guardá el archivo en Google Drive. Al restaurar, los datos del respaldo se combinan con los actuales (no se pierde nada de lo que ya tenés).</p></div>
+  <div class="card"><h3>ℹ️ Acerca de</h3><p class="note" style="margin:0">CRz Control Diario v${APP_VER} · Funciona sin internet. Los datos quedan guardados solo en este dispositivo.</p></div>
+  <div class="foot">CRz Control Diario · ${APP_ID}</div>`;
+}
+function wAjustes() {
+  $$('#tema button').forEach(b => b.onclick = () => { cfg().tema = b.dataset.t; save(); applyTheme(); render(); });
+  $$('[data-grp]').forEach(inp => inp.addEventListener('input', () => { const x = cfg()[inp.dataset.grp].find(x => x.id === inp.dataset.id); x.grupo = inp.value.trim(); save(); }));
+  $$('[data-list]').forEach(inp => inp.addEventListener('input', () => { const x = cfg()[inp.dataset.list].find(x => x.id === inp.dataset.id); x.nombre = inp.value.trim() || x.nombre; save(); }));
+  $$('[data-sw]').forEach(sw => sw.onchange = () => { const x = cfg()[sw.dataset.sw].find(x => x.id === sw.dataset.id); x.activo = sw.checked; save(); render(); });
+  $$('[data-add]').forEach(b => b.onclick = async () => {
+    const k = b.dataset.add, lbl = LISTAS.find(l => l[0] === k)[2];
+    const n = await ask(lbl, 'Escribí el nombre:', 'Agregar', false, '<input type="text" maxlength="40" style="letter-spacing:0;text-align:left;font-size:16px">');
+    if (!n || !n.trim()) return;
+    cfg()[k].push({ id: uid(), nombre: n.trim(), grupo: '', activo: true }); save(); render(); toast('Agregado: ' + n.trim());
+  });
+  const pinSet = async () => {
+    const p = await ask('Nuevo PIN', 'Escribí 4 números:', 'Guardar', false, '<input type="password" inputmode="numeric" maxlength="4">');
+    if (p === false) return; if (!/^\d{4}$/.test(p)) return toast('El PIN debe tener 4 números');
+    const p2 = await ask('Confirmar PIN', 'Repetí el PIN:', 'Confirmar', false, '<input type="password" inputmode="numeric" maxlength="4">');
+    if (p2 !== p) return toast('Los PIN no coinciden');
+    cfg().pin = p; saveNow(); try { sessionStorage.setItem(APP_ID + ':ok', '1'); } catch (e) {} render(); toast('PIN activado');
+  };
+  if ($('#pinOn')) $('#pinOn').onclick = pinSet;
+  if ($('#pinChg')) $('#pinChg').onclick = pinSet;
+  if ($('#pinOff')) $('#pinOff').onclick = async () => { if (await ask('Quitar PIN', '¿Desactivar el PIN de acceso?', 'Quitar', true)) { cfg().pin = ''; save(); render(); } };
+  $('#bkExp').onclick = () => { cfg().ultimoBackup = Date.now(); saveNow(); download(JSON.stringify({ app: APP_ID, ver: APP_VER, fecha: new Date().toISOString(), data: DB }, null, 1), `respaldo_control-diario_${todayISO()}.json`, 'application/json'); render(); toast('Respaldo descargado'); };
+  $('#bkImp').onclick = () => $('#fileIn').click();
+}
+$('#fileIn').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try {
+    const j = JSON.parse(await f.text()); const inc = j.data || j;
+    if (!inc.dias || !inc.config) throw 0;
+    const n = Object.keys(inc.dias).length;
+    if (!await ask('Restaurar respaldo', `El archivo tiene ${n} día(s). Se combinará con lo actual: los días que ya tengas cargados se mantienen y se suman los que falten.`, 'Restaurar')) return;
+    try { localStorage.setItem(K_SNAP, JSON.stringify(DB)); } catch (er) {}
+    let added = 0;
+    for (const k of Object.keys(inc.dias)) if (!DB.dias[k] || !hasData(DB.dias[k])) { DB.dias[k] = inc.dias[k]; added++; }
+    for (const list of ['agencias', 'cobradores', 'depositos']) (inc.config[list] || []).forEach(x => { if (!cfg()[list].find(y => y.id === x.id)) cfg()[list].push(x); });
+    DB = migrate(DB); saveNow(); render(); toast(`Restaurado: ${added} día(s) agregados`);
+  } catch (er) { toast('⚠️ El archivo no es un respaldo válido'); }
+};
+
+/* ---------- PIN ---------- */
+function lockIfNeeded() {
+  let ok = false; try { ok = sessionStorage.getItem(APP_ID + ':ok') === '1'; } catch (e) {}
+  if (!cfg().pin || ok) return;
+  let val = '';
+  const lock = $('#lock'), dots = $('#dots');
+  const paint = () => [...dots.children].forEach((d, i) => d.classList.toggle('f', i < val.length));
+  $('#pad').innerHTML = [1, 2, 3, 4, 5, 6, 7, 8, 9, '', 0, '⌫'].map(k => k === '' ? '<span></span>' : `<button data-k="${k}">${k}</button>`).join('');
+  const press = k => {
+    if (k === '⌫') val = val.slice(0, -1); else if (val.length < 4) val += k;
+    paint();
+    if (val.length === 4) {
+      if (val === cfg().pin) { try { sessionStorage.setItem(APP_ID + ':ok', '1'); } catch (e) {} lock.classList.remove('show'); document.removeEventListener('keydown', kb); }
+      else { dots.classList.add('err'); setTimeout(() => { dots.classList.remove('err'); val = ''; paint(); }, 400); }
+    }
+  };
+  const kb = e => { if (/^\d$/.test(e.key)) press(e.key); if (e.key === 'Backspace') press('⌫'); };
+  $$('#pad button').forEach(b => b.onclick = () => press(b.dataset.k));
+  document.addEventListener('keydown', kb);
+  lock.classList.add('show');
+}
+
+/* ---------- Inicio ---------- */
+initUI();
+saveNow(); // guarda la configuración migrada (los días cargados quedan intactos)
+applyTheme();
+paintDate();
+render();
+lockIfNeeded();
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
