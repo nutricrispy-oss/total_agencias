@@ -4,7 +4,7 @@
    Los datos del usuario NO están en la caché (están en localStorage), así que
    actualizar la app nunca borra lo cargado. */
 const PREFIX = 'crz-control-diario-';
-const CACHE = PREFIX + 'v2';
+const CACHE = PREFIX + 'v3';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

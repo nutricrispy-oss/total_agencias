@@ -57,7 +57,7 @@ header{position:sticky;top:0;z-index:20;background:linear-gradient(135deg,#0f766
 /* Bottom nav */
 nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:30;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom)}
 nav.tabs .in{display:flex;max-width:760px;width:100%}
-nav.tabs button{flex:1;padding:8px 0 9px;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--mut);font-size:12px;font-weight:600}
+nav.tabs button{flex:1;min-width:0;padding:8px 0 9px;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--mut);font-size:12px;font-weight:600}
 nav.tabs button .ic{font-size:21px;line-height:1;filter:grayscale(.6);opacity:.8}
 nav.tabs button.on{color:var(--pri)}
 nav.tabs button.on .ic{filter:none;opacity:1;transform:translateY(-1px)}
@@ -146,6 +146,9 @@ nav.tabs button.on .ic{filter:none;opacity:1;transform:translateY(-1px)}
 .pr .w{font-size:12px;color:var(--mut);font-style:italic;line-height:1.25}
 .pr .a{display:flex;gap:4px}
 .pr .a button{width:34px;height:34px;border-radius:10px;background:var(--bg2);font-size:15px}
+.pr .n.tr{background:var(--soft);color:var(--pri)}
+.nota{width:100%;height:38px;margin-top:8px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);padding:0 10px;font-size:14px;outline:0}
+.nota:focus{border-color:var(--pri)}
 .pr.edit{background:var(--warnSoft);border-radius:10px;padding-left:4px}
 .empty{text-align:center;color:var(--mut);padding:18px 6px;font-size:14px}
 
@@ -213,7 +216,7 @@ nav.tabs button.on .ic{filter:none;opacity:1;transform:translateY(-1px)}
 .pad{display:grid;grid-template-columns:repeat(3,72px);gap:14px}
 .pad button{width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;font-size:26px;font-weight:600}
 .pad button:active{background:rgba(255,255,255,.28)}
-@media (min-width:600px){ .kpis{grid-template-columns:repeat(4,1fr)} .modal{align-items:center} }
+@media (min-width:600px){ .kpis{grid-template-columns:repeat(3,1fr)} .modal{align-items:center} }
 @media print{ header,nav.tabs,.noprint{display:none!important} body{padding:0;background:#fff} .card{box-shadow:none} }
 </style>
 </head>
@@ -247,6 +250,7 @@ nav.tabs button.on .ic{filter:none;opacity:1;transform:translateY(-1px)}
 <nav class="tabs"><div class="in">
   <button data-tab="efectivo"><span class="ic">💵</span>Efectivo</button>
   <button data-tab="premios"><span class="ic">🏆</span>Premios</button>
+  <button data-tab="depositos"><span class="ic">🏦</span>Depósitos</button>
   <button data-tab="resumen"><span class="ic">📊</span>Resumen</button>
   <button data-tab="ajustes"><span class="ic">⚙️</span>Ajustes</button>
 </div></nav>
@@ -264,7 +268,7 @@ nav.tabs button.on .ic{filter:none;opacity:1;transform:translateY(-1px)}
    identificador, para no chocar con las demás apps del repositorio.
    ========================================================= */
 const APP_ID = 'crz-control-diario';
-const APP_VER = '1.1.0';
+const APP_VER = '1.2.0';
 const K_DATA = APP_ID + ':data';
 const K_UI = APP_ID + ':ui';
 const K_SNAP = APP_ID + ':snapshot';
@@ -396,8 +400,9 @@ const enLetras = n => (n < 0 ? 'Menos ' : '') + letras(n) + ' Guaraníes';
 /* ---------- Modelo del día ---------- */
 function getDay(f, create) {
   let d = DB.dias[f];
-  if (!d && create) d = DB.dias[f] = { ef: {}, dep: {}, pr: {} };
-  return d || { ef: {}, dep: {}, pr: {} };
+  if (!d && create) d = DB.dias[f] = { ef: {}, tr: {}, dep: {}, pr: {} };
+  if (d && create) { d.ef = d.ef || {}; d.tr = d.tr || {}; d.dep = d.dep || {}; d.pr = d.pr || {}; }
+  return d || { ef: {}, tr: {}, dep: {}, pr: {} };
 }
 function efAg(d, id) {
   const c = (d.ef && d.ef[id]) || {};
@@ -411,7 +416,12 @@ function depTot(d) { return Object.values(d.dep || {}).reduce((s, v) => s + (v |
 function prCob(d, id) { return ((d.pr && d.pr[id]) || []).reduce((s, x) => s + (x.monto || 0), 0); }
 function prCnt(d, id) { return ((d.pr && d.pr[id]) || []).length; }
 function prTot(d) { return Object.keys(d.pr || {}).reduce((s, id) => s + prCob(d, id), 0); }
-function hasData(d) { return efTot(d) || depTot(d) || prTot(d) || Object.values(d.pr || {}).some(a => a.length); }
+function trAg(d, id) { return ((d.tr && d.tr[id]) || []).reduce((s, x) => s + (x.monto || 0), 0); }
+function trCnt(d, id) { return ((d.tr && d.tr[id]) || []).length; }
+function trTot(d) { return Object.keys(d.tr || {}).reduce((s, id) => s + trAg(d, id), 0); }
+function rendAg(d, id) { return efAg(d, id).t + trAg(d, id); }
+function rendTot(d) { return efTot(d) + trTot(d); }
+function hasData(d) { return efTot(d) || trTot(d) || depTot(d) || prTot(d) || Object.values(d.pr || {}).some(a => a.length); }
 const cfg = () => DB.config;
 const activos = list => cfg()[list].filter(x => x.activo);
 function grupo(list, id) { const x = cfg()[list].find(x => x.id === id); return x && x.grupo ? x.grupo : ''; }
@@ -495,10 +505,11 @@ function bindPicker(btn, pick, get, set) {
 $$('nav.tabs button').forEach(b => b.onclick = () => { UI.tab = b.dataset.tab; UI.edit = null; saveUI(); render(); scrollTo(0, 0); });
 function render() {
   $$('nav.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === UI.tab));
-  $('#datebar').style.display = (UI.tab === 'efectivo' || UI.tab === 'premios') ? '' : 'none';
+  $('#datebar').style.display = (UI.tab === 'efectivo' || UI.tab === 'premios' || UI.tab === 'depositos') ? '' : 'none';
   const v = $('#view');
   if (UI.tab === 'efectivo') v.innerHTML = vEfectivo(), wEfectivo();
   else if (UI.tab === 'premios') v.innerHTML = vPremios(), wPremios();
+  else if (UI.tab === 'depositos') v.innerHTML = vDepositos(), wDepositos();
   else if (UI.tab === 'resumen') v.innerHTML = vResumen(), wResumen();
   else v.innerHTML = vAjustes(), wAjustes();
 }
@@ -510,8 +521,8 @@ function vEfectivo() {
   const d = getDay(UI.fecha);
   const ags = activos('agencias');
   if (UI.ag !== 'todas' && !ags.find(a => a.id === UI.ag)) UI.ag = ags[0] ? ags[0].id : 'todas';
-  const chips = ags.map(a => `<button class="chip ${UI.ag === a.id ? 'on' : ''}" data-ag="${a.id}"><small class="cg">${esc(a.grupo || '\u00a0')}</small><b>${esc(a.nombre)}</b><span id="chip-${a.id}">${gs(efAg(d, a.id).t)}</span></button>`).join('')
-    + `<button class="chip ${UI.ag === 'todas' ? 'on' : ''}" data-ag="todas"><small class="cg">Todas</small><b>Σ Suma total</b><span id="chip-todas">${gs(efTot(d))}</span></button>`;
+  const chips = ags.map(a => `<button class="chip ${UI.ag === a.id ? 'on' : ''}" data-ag="${a.id}"><small class="cg">${esc(a.grupo || ' ')}</small><b>${esc(a.nombre)}</b><span id="chip-${a.id}">${gs(rendAg(d, a.id))}</span></button>`).join('')
+    + `<button class="chip ${UI.ag === 'todas' ? 'on' : ''}" data-ag="todas"><small class="cg">Todas</small><b>Σ Suma total</b><span id="chip-todas">${gs(rendTot(d))}</span></button>`;
   let main;
   if (UI.ag === 'todas') main = `<div id="efTodas">${blockTodas(d)}</div>`;
   else {
@@ -529,28 +540,49 @@ function vEfectivo() {
       <div class="subt"><span>Total monedas en caja</span><span class="money" id="efM">${gs(t.m)}</span></div>
       <div class="tot"><span>TOTAL EFECTIVO EN CAJA</span><span class="money" id="efT">${gs(t.t)}</span></div>
       <div class="btns noprint"><button class="btn sm" id="efClear">↺ Poner en cero esta agencia</button></div>
-    </div>`;
+    </div>
+    <div class="card"><h3>📲 Transferencias <span class="sub" id="trCount">${trCnt(d, a.id)} transferencia(s)</span></h3>
+      <div class="addbox noprint"><div class="minput"><span>Gs.</span><input id="trIn" type="text" inputmode="numeric" autocomplete="off" placeholder="0" enterkeyhint="done"></div><button class="btn pri big" id="trAdd">＋ Agregar</button></div>
+      <input id="trNota" class="nota noprint" type="text" maxlength="40" placeholder="Detalle (opcional): banco, cliente, nro…" autocomplete="off">
+      <div id="trList">${listTr(d)}</div>
+    </div>
+    <div class="card"><h3>🧾 Total rendido · ${esc(a.nombre)}</h3><div id="rendBox">${blockRend(d, a.id)}</div></div>`;
   }
-  const deps = activos('depositos');
   return `<div class="chips" id="agChips">${chips}</div>${main}
-    <div class="card"><h3>Totales por agencia <span class="sub">${dmy(UI.fecha)}</span></h3><div id="efAgs">${blockAgs(d)}</div></div>
-    <div class="card"><h3>Depósitos <span class="sub">montos en Gs.</span></h3>
-      ${deps.map(x => `<div class="dep"><label for="dep-${x.id}">${esc(x.nombre)}</label><div class="minput"><span>Gs.</span><input id="dep-${x.id}" data-dep="${x.id}" type="text" inputmode="numeric" autocomplete="off" value="${(d.dep && d.dep[x.id]) ? fmt(d.dep[x.id]) : ''}" placeholder="0"></div></div>`).join('') || '<div class="empty">No hay conceptos activos. Agregalos en Ajustes.</div>'}
-      <div id="depRes">${blockDep(d)}</div>
-    </div>`;
+    <div class="card"><h3>Totales por agencia <span class="sub">${dmy(UI.fecha)}</span></h3><div id="efAgs">${blockAgs(d)}</div></div>`;
 }
+function blockRend(d, id) {
+  const t = efAg(d, id), tr = trAg(d, id);
+  return `<div class="row"><div class="l"><b>💵 Efectivo</b><small>Billetes</small></div><div class="r money">${gs(t.b)}</div></div>
+    <div class="row"><div class="l"><b>🪙 Monedas</b></div><div class="r money">${gs(t.m)}</div></div>
+    <div class="row"><div class="l"><b>📲 Transferencias</b><small>${trCnt(d, id)} transferencia(s)</small></div><div class="r money">${gs(tr)}</div></div>
+    <div class="tot"><span>TOTAL</span><span class="money">${gs(t.t + tr)}</span></div>
+    <div class="words" style="margin-top:6px;font-size:12.5px;color:var(--mut);font-style:italic">${enLetras(t.t + tr)}</div>`;
+}
+function listTr(d) {
+  const arr = (d.tr && d.tr[UI.ag]) || [];
+  if (!arr.length) return '<div class="empty">Sin transferencias en este día.</div>';
+  return arr.map((x, i) => `<div class="pr ${UI.edit === x.id ? 'edit' : ''}"><div class="n tr">${i + 1}</div><div><div class="m money">${gs(x.monto)}</div><div class="w">${x.nota ? esc(x.nota) : enLetras(x.monto)}</div></div>
+    <div class="a noprint"><button data-ted="${x.id}" aria-label="Editar">✎</button><button data-tdel="${x.id}" aria-label="Eliminar">🗑</button></div></div>`).join('')
+    + `<div class="subt"><span>Total transferencias</span><span class="money">${gs(trAg(d, UI.ag))}</span></div>`;
+}
+const desglose = (b, m, tr) => `Ef. ${fmt(b)} · Mon. ${fmt(m)} · Tr. ${fmt(tr)}`;
 function blockAgs(d) {
   const ags = activos('agencias');
-  const extra = Object.keys(d.ef || {}).filter(id => !ags.find(a => a.id === id) && efAg(d, id).t);
+  const extra = Object.keys(Object.assign({}, d.ef || {}, d.tr || {})).filter(id => !ags.find(a => a.id === id) && rendAg(d, id));
   const all = ags.map(a => a.id).concat(extra);
-  const tot = efTot(d) || 1;
-  return filasAgrupadas('agencias', all, id => efAg(d, id).t, tot, '')
-    + `<div class="row total"><div class="l"><b>SUMA TOTAL</b></div><div class="r money">${gs(efTot(d))}</div></div>`;
+  const tot = rendTot(d) || 1;
+  let b = 0, m = 0; Object.keys(d.ef || {}).forEach(id => { const t = efAg(d, id); b += t.b; m += t.m; });
+  return filasAgrupadas('agencias', all, id => rendAg(d, id), tot, '', id => { const t = efAg(d, id); return desglose(t.b, t.m, trAg(d, id)); })
+    + `<div class="row"><div class="l"><b>💵 Efectivo (billetes)</b></div><div class="r money">${gs(b)}</div></div>
+       <div class="row"><div class="l"><b>🪙 Monedas</b></div><div class="r money">${gs(m)}</div></div>
+       <div class="row"><div class="l"><b>📲 Transferencias</b></div><div class="r money">${gs(trTot(d))}</div></div>
+       <div class="row total"><div class="l"><b>SUMA TOTAL</b></div><div class="r money">${gs(rendTot(d))}</div></div>`;
 }
 function blockDep(d) {
   const dep = depTot(d), ef = efTot(d), dif = dep - ef;
   return `<div class="row total"><div class="l"><b>Total depósitos</b></div><div class="r money">${gs(dep)}</div></div>
-    <div class="row"><div class="l"><b>Menos total efectivo</b><small>Suma total de todas las agencias</small></div><div class="r money">${gs(-ef)}</div></div>
+    <div class="row"><div class="l"><b>Menos total efectivo</b><small>Billetes + monedas de todas las agencias (sin transferencias)</small></div><div class="r money">${gs(-ef)}</div></div>
     <div class="row"><div class="l"><b>Diferencia</b><small>${dif === 0 ? 'Cuadrado ✔' : dif > 0 ? 'Depósitos mayores al efectivo' : 'Efectivo mayor a los depósitos'}</small></div><div class="r money ${dif > 0 ? 'pos' : dif < 0 ? 'neg' : ''}" style="font-size:17px">${gs(dif)}</div></div>`;
 }
 function blockTodas(d) {
@@ -558,13 +590,16 @@ function blockTodas(d) {
   let b = 0, m = 0;
   const row = (v, mon) => { const q = sum(v); mon ? m += q * v : b += q * v; return `<div class="den"><div class="face"><i class="${mon ? 'm' : ''}">${mon ? 'Moneda' : 'Billete'}</i>${fmt(v)}</div><div style="text-align:center;font-weight:800;font-size:17px">${q}</div><div class="sub money ${q ? '' : 'z'}">${fmt(q * v)}</div></div>`; };
   const bh = BILLETES.map(v => row(v, false)).join(''), mh = MONEDAS.map(v => row(v, true)).join('');
-  return `<div class="card"><div class="hero"><div class="lbl">Suma total · todas las agencias</div><div class="big money"><small>Gs.</small>${fmt(b + m)}</div><div class="words">${enLetras(b + m)}</div></div>
+  const tr = trTot(d);
+  return `<div class="card"><div class="hero"><div class="lbl">Suma total · todas las agencias</div><div class="big money"><small>Gs.</small>${fmt(b + m + tr)}</div><div class="words">${enLetras(b + m + tr)}</div></div>
     <div class="sect">Billetes (cantidad sumada)</div>${bh}<div class="subt"><span>Total billetes</span><span class="money">${gs(b)}</span></div>
     <div class="sect">Monedas (cantidad sumada)</div>${mh}<div class="subt"><span>Total monedas en caja</span><span class="money">${gs(m)}</span></div>
-    <div class="tot"><span>TOTAL EFECTIVO EN CAJA</span><span class="money">${gs(b + m)}</span></div></div>`;
+    <div class="subt" style="margin-top:12px"><span>TOTAL EFECTIVO EN CAJA</span><span class="money">${gs(b + m)}</span></div>
+    <div class="subt"><span>📲 Transferencias</span><span class="money">${gs(tr)}</span></div>
+    <div class="tot"><span>TOTAL GENERAL</span><span class="money">${gs(b + m + tr)}</span></div></div>`;
 }
 function wEfectivo() {
-  $$('#agChips .chip').forEach(c => c.onclick = () => { UI.ag = c.dataset.ag; saveUI(); render(); });
+  $$('#agChips .chip').forEach(c => c.onclick = () => { UI.ag = c.dataset.ag; UI.edit = null; saveUI(); render(); });
   const on = $('#agChips .chip.on'); if (on) on.scrollIntoView({ inline: 'center', block: 'nearest' });
   const qs = $$('.qty');
   qs.forEach((inp, i) => {
@@ -577,14 +612,44 @@ function wEfectivo() {
     });
     inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); (qs[i + 1] || inp).focus(); if (!qs[i + 1]) inp.blur(); } });
   });
-  bindMoney($$('[data-dep]'), (id, val) => { const d = getDay(UI.fecha, true); if (val) d.dep[id] = val; else delete d.dep[id]; save(); paintEf(); });
   const clr = $('#efClear');
   if (clr) clr.onclick = async () => {
     const d = getDay(UI.fecha); const prev = d.ef && d.ef[UI.ag] ? { ...d.ef[UI.ag] } : null; if (!prev) return toast('Ya está en cero');
-    if (!await ask('Poner en cero', `¿Borrar las cantidades de ${nombre('agencias', UI.ag)} del ${dmy(UI.fecha)}?`, 'Poner en cero', true)) return;
+    if (!await ask('Poner en cero', `¿Borrar las cantidades de billetes y monedas de ${nombre('agencias', UI.ag)} del ${dmy(UI.fecha)}? Las transferencias no se tocan.`, 'Poner en cero', true)) return;
     const ag = UI.ag; delete d.ef[ag]; save(); render();
     toast('Agencia en cero', 'Deshacer', () => { getDay(UI.fecha, true).ef[ag] = prev; save(); render(); });
   };
+  // Transferencias
+  const inp = $('#trIn'); if (!inp) return;
+  const nota = $('#trNota');
+  inp.addEventListener('input', () => { const v = digits(inp.value).slice(0, 13); inp.value = v ? fmt(+v) : ''; });
+  const setMode = () => { $('#trAdd').textContent = UI.edit ? '✔ Guardar' : '＋ Agregar'; };
+  const add = () => {
+    const v = +digits(inp.value);
+    if (!v) { inp.focus(); return toast('Escribí el monto de la transferencia'); }
+    const d = getDay(UI.fecha, true); d.tr = d.tr || {}; d.tr[UI.ag] = d.tr[UI.ag] || [];
+    if (UI.edit) { const x = d.tr[UI.ag].find(x => x.id === UI.edit); if (x) { x.monto = v; x.nota = nota.value.trim(); } UI.edit = null; toast('Transferencia actualizada'); }
+    else d.tr[UI.ag].push({ id: uid(), monto: v, nota: nota.value.trim() });
+    save(); inp.value = ''; nota.value = ''; setMode(); paintEf(); inp.focus();
+  };
+  $('#trAdd').onclick = add;
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); add(); } });
+  nota.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); add(); } });
+  bindTrList();
+}
+function bindTrList() {
+  $$('[data-tdel]').forEach(b => b.onclick = () => {
+    const d = getDay(UI.fecha); const arr = d.tr[UI.ag]; const i = arr.findIndex(x => x.id === b.dataset.tdel); if (i < 0) return;
+    const [x] = arr.splice(i, 1); if (UI.edit === x.id) { UI.edit = null; $('#trIn').value = ''; $('#trNota').value = ''; $('#trAdd').textContent = '＋ Agregar'; }
+    save(); paintEf();
+    const ag = UI.ag, f = UI.fecha;
+    toast('Transferencia de ' + gs(x.monto) + ' eliminada', 'Deshacer', () => { const dd = getDay(f, true); dd.tr = dd.tr || {}; dd.tr[ag] = dd.tr[ag] || []; dd.tr[ag].splice(i, 0, x); save(); render(); });
+  });
+  $$('[data-ted]').forEach(b => b.onclick = () => {
+    const x = getDay(UI.fecha).tr[UI.ag].find(x => x.id === b.dataset.ted); if (!x) return;
+    UI.edit = x.id; const inp = $('#trIn'); inp.value = fmt(x.monto); $('#trNota').value = x.nota || ''; $('#trAdd').textContent = '✔ Guardar';
+    paintEf(); inp.focus(); inp.select(); inp.scrollIntoView({ block: 'center' });
+  });
 }
 function paintEf() {
   const d = getDay(UI.fecha);
@@ -594,11 +659,39 @@ function paintEf() {
     const t = efAg(d, UI.ag);
     $('#efBig').innerHTML = '<small>Gs.</small>' + fmt(t.t); $('#efWords').textContent = enLetras(t.t);
     $('#efB').textContent = gs(t.b); $('#efM').textContent = gs(t.m); $('#efT').textContent = gs(t.t);
+    $('#trList').innerHTML = listTr(d); $('#trCount').textContent = trCnt(d, UI.ag) + ' transferencia(s)';
+    $('#rendBox').innerHTML = blockRend(d, UI.ag); bindTrList();
   }
-  activos('agencias').forEach(a => { const el = $('#chip-' + a.id); if (el) el.textContent = gs(efAg(d, a.id).t); });
-  $('#chip-todas').textContent = gs(efTot(d));
+  activos('agencias').forEach(a => { const el = $('#chip-' + a.id); if (el) el.textContent = gs(rendAg(d, a.id)); });
+  $('#chip-todas').textContent = gs(rendTot(d));
   $('#efAgs').innerHTML = blockAgs(d);
-  $('#depRes').innerHTML = blockDep(d);
+}
+
+/* =========================================================
+   DEPÓSITOS
+   ========================================================= */
+function vDepositos() {
+  const d = getDay(UI.fecha);
+  const deps = activos('depositos');
+  return `<div class="card" style="margin-top:14px">
+    <div class="hero"><div class="lbl">Total depósitos · ${dayName(UI.fecha)} ${dmy(UI.fecha)}</div><div class="big money" id="depBig"><small>Gs.</small>${fmt(depTot(d))}</div><div class="words" id="depWords">${enLetras(depTot(d))}</div></div>
+    ${deps.map(x => `<div class="dep"><label for="dep-${x.id}">${esc(x.nombre)}</label><div class="minput"><span>Gs.</span><input id="dep-${x.id}" data-dep="${x.id}" type="text" inputmode="numeric" autocomplete="off" value="${(d.dep && d.dep[x.id]) ? fmt(d.dep[x.id]) : ''}" placeholder="0"></div></div>`).join('') || '<div class="empty">No hay conceptos activos. Agregalos en Ajustes.</div>'}
+    <div id="depRes">${blockDep(d)}</div>
+    <div class="btns noprint"><button class="btn sm" id="depClear">↺ Poner depósitos del día en cero</button></div>
+  </div>
+  <div class="card"><h3>Efectivo del día por agencia <span class="sub">para comparar</span></h3><div id="depAgs">${filasAgrupadas('agencias', activos('agencias').map(a => a.id), id => efAg(d, id).t, efTot(d) || 1, '')}<div class="row total"><div class="l"><b>TOTAL EFECTIVO</b></div><div class="r money">${gs(efTot(d))}</div></div></div></div>`;
+}
+function wDepositos() {
+  bindMoney($$('[data-dep]'), (id, val) => {
+    const d = getDay(UI.fecha, true); if (val) d.dep[id] = val; else delete d.dep[id]; save();
+    $('#depBig').innerHTML = '<small>Gs.</small>' + fmt(depTot(d)); $('#depWords').textContent = enLetras(depTot(d)); $('#depRes').innerHTML = blockDep(d);
+  });
+  $('#depClear').onclick = async () => {
+    const d = getDay(UI.fecha); if (!depTot(d)) return toast('Ya está en cero');
+    if (!await ask('Poner en cero', `¿Borrar los depósitos del ${dmy(UI.fecha)}?`, 'Poner en cero', true)) return;
+    const prev = { ...d.dep }; d.dep = {}; save(); render();
+    toast('Depósitos en cero', 'Deshacer', () => { getDay(UI.fecha, true).dep = prev; save(); render(); });
+  };
 }
 function bindMoney(inputs, onval) {
   inputs.forEach(inp => {
@@ -711,18 +804,22 @@ function periodo() {
   return { a: ks[0] || todayISO(), b: ks[ks.length - 1] || todayISO(), lbl: 'Total general', sub: ks.length ? 'Desde ' + dmy(ks[0]) + ' hasta ' + dmy(ks[ks.length - 1]) : 'Sin datos todavía', total: true };
 }
 function agregar(a, b) {
-  const R = { ef: 0, dep: 0, pr: 0, prN: 0, ags: {}, cobs: {}, cobsN: {}, deps: {}, dias: [], meses: {} };
+  const R = { ef: 0, tr: 0, b: 0, m: 0, dep: 0, pr: 0, prN: 0, agB: {}, agM: {}, agTr: {}, rend: {}, ags: {}, cobs: {}, cobsN: {}, deps: {}, dias: [], meses: {} };
   Object.keys(DB.dias).filter(k => k >= a && k <= b).sort().forEach(k => {
     const d = DB.dias[k]; if (!hasData(d)) return;
     const e = efTot(d), p = prTot(d), dp = depTot(d);
     let n = 0;
-    Object.keys(d.ef || {}).forEach(id => R.ags[id] = (R.ags[id] || 0) + efAg(d, id).t);
+    const t = trTot(d);
+    Object.keys(d.ef || {}).forEach(id => { const x = efAg(d, id); R.ags[id] = (R.ags[id] || 0) + x.t; R.agB[id] = (R.agB[id] || 0) + x.b; R.agM[id] = (R.agM[id] || 0) + x.m; R.b += x.b; R.m += x.m; });
+    Object.keys(d.tr || {}).forEach(id => R.agTr[id] = (R.agTr[id] || 0) + trAg(d, id));
+    Object.keys(Object.assign({}, d.ef || {}, d.tr || {})).forEach(id => { const r = rendAg(d, id); if (r || R.rend[id] !== undefined) R.rend[id] = (R.rend[id] || 0) + r; });
+    R.tr += t;
     Object.keys(d.pr || {}).forEach(id => { R.cobs[id] = (R.cobs[id] || 0) + prCob(d, id); R.cobsN[id] = (R.cobsN[id] || 0) + prCnt(d, id); n += prCnt(d, id); });
     Object.keys(d.dep || {}).forEach(id => R.deps[id] = (R.deps[id] || 0) + (d.dep[id] || 0));
     R.ef += e; R.pr += p; R.dep += dp; R.prN += n;
-    R.dias.push({ f: k, ef: e, pr: p, dep: dp, n });
-    const mk = k.slice(0, 7); const M = R.meses[mk] = R.meses[mk] || { f: mk, ef: 0, pr: 0, dep: 0, n: 0, dias: 0 };
-    M.ef += e; M.pr += p; M.dep += dp; M.n += n; M.dias++;
+    R.dias.push({ f: k, ef: e, tr: t, pr: p, dep: dp, n });
+    const mk = k.slice(0, 7); const M = R.meses[mk] = R.meses[mk] || { f: mk, ef: 0, tr: 0, pr: 0, dep: 0, n: 0, dias: 0 };
+    M.tr += t; M.ef += e; M.pr += p; M.dep += dp; M.n += n; M.dias++;
   });
   return R;
 }
@@ -736,15 +833,17 @@ function vResumen() {
       <div><label>Hasta</label><div class="tfield"><input id="rH" type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/aaaa" value="${dmy(UI.rHasta)}"><button id="rHc">📅</button><input type="date" id="rHp" class="hidden-date" tabindex="-1"></div></div></div>` : '';
   const nd = R.dias.length, dif = R.dep - R.ef;
   const kpis = `<div class="kpis">
-    <div class="kpi ef"><div class="lbl">Efectivo</div><div class="v money">${gs(R.ef)}</div><div class="s">${nd > 1 ? 'Prom. diario ' + gs(R.ef / nd) : 'Todas las agencias'}</div></div>
+    <div class="kpi ef"><div class="lbl">Total rendido</div><div class="v money">${gs(R.ef + R.tr)}</div><div class="s">${nd > 1 ? 'Prom. diario ' + gs((R.ef + R.tr) / nd) : 'Efectivo + transferencias'}</div></div>
+    <div class="kpi"><div class="lbl">Efectivo</div><div class="v money">${gs(R.ef)}</div><div class="s">Billetes ${fmt(R.b)} · Mon. ${fmt(R.m)}</div></div>
+    <div class="kpi"><div class="lbl">Transferencias</div><div class="v money">${gs(R.tr)}</div><div class="s">Todas las agencias</div></div>
     <div class="kpi kpr"><div class="lbl">Premios</div><div class="v money">${gs(R.pr)}</div><div class="s">${R.prN} premio(s)${nd > 1 ? ' · prom. ' + gs(R.pr / nd) : ''}</div></div>
     <div class="kpi"><div class="lbl">Depósitos</div><div class="v money">${gs(R.dep)}</div><div class="s">${Object.keys(R.deps).length} concepto(s)</div></div>
     <div class="kpi"><div class="lbl">Diferencia</div><div class="v money ${dif > 0 ? 'pos' : dif < 0 ? 'neg' : ''}">${gs(dif)}</div><div class="s">Depósitos − efectivo</div></div></div>`;
   if (!nd) return `<div class="seg" id="seg">${segs}</div>${nav}${rango}${kpis}<div class="card empty">No hay movimientos cargados en este período.</div>`;
 
-  const lista = (obj, list, tot, cls, cnt) => {
+  const lista = (obj, list, tot, cls, cnt, subFn) => {
     const ids = cfg()[list].map(x => x.id).filter(id => obj[id] !== undefined).concat(Object.keys(obj).filter(id => !cfg()[list].find(x => x.id === id)));
-    return filasAgrupadas(list, ids, id => obj[id] || 0, tot, cls, cnt ? id => (cnt[id] || 0) + ' premio(s)' : null)
+    return filasAgrupadas(list, ids, id => obj[id] || 0, tot, cls, subFn || (cnt ? id => (cnt[id] || 0) + ' premio(s)' : null))
       + `<div class="row total"><div class="l"><b>TOTAL</b></div><div class="r money">${gs(tot)}</div></div>`;
   };
   let tabla = '';
@@ -753,14 +852,14 @@ function vResumen() {
     const rows = porMes ? Object.values(R.meses) : R.dias;
     const max = Math.max(1, ...rows.map(r => Math.max(r.ef, r.pr)));
     tabla = `<div class="card"><h3>${porMes ? 'Detalle por mes' : 'Detalle por día'} <span class="sub">${porMes ? 'tocá un mes para verlo' : 'tocá un día para abrirlo'}</span></h3><div class="tscroll"><table class="tbl">
-      <thead><tr><th>${porMes ? 'Mes' : 'Fecha'}</th><th>Efectivo</th><th>Premios</th><th>Depósitos</th></tr></thead><tbody>
+      <thead><tr><th>${porMes ? 'Mes' : 'Fecha'}</th><th>Efectivo</th><th>Transf.</th><th>Premios</th><th>Depósitos</th></tr></thead><tbody>
       ${rows.map(r => `<tr class="clk" data-${porMes ? 'mes' : 'dia'}="${r.f}"><td><b>${porMes ? MESES[+r.f.slice(5) - 1].slice(0, 3) + ' ' + r.f.slice(0, 4) : DIAS3[pISO(r.f).getDay()] + ' ' + dmy(r.f).slice(0, 5)}</b>
         <div class="bar" style="width:90px"><i style="width:${Math.round(r.ef / max * 100)}%"></i></div><div class="bar g" style="width:90px;margin-top:2px"><i style="width:${Math.round(r.pr / max * 100)}%"></i></div></td>
-        <td class="money">${fmt(r.ef)}</td><td class="money">${fmt(r.pr)}</td><td class="money">${fmt(r.dep)}</td></tr>`).join('')}
-      </tbody><tfoot><tr><td>Total (${porMes ? rows.length + ' meses' : nd + ' días'})</td><td class="money">${fmt(R.ef)}</td><td class="money">${fmt(R.pr)}</td><td class="money">${fmt(R.dep)}</td></tr></tfoot></table></div></div>`;
+        <td class="money">${fmt(r.ef)}</td><td class="money">${fmt(r.tr)}</td><td class="money">${fmt(r.pr)}</td><td class="money">${fmt(r.dep)}</td></tr>`).join('')}
+      </tbody><tfoot><tr><td>Total (${porMes ? rows.length + ' meses' : nd + ' días'})</td><td class="money">${fmt(R.ef)}</td><td class="money">${fmt(R.tr)}</td><td class="money">${fmt(R.pr)}</td><td class="money">${fmt(R.dep)}</td></tr></tfoot></table></div></div>`;
   }
   return `<div class="seg" id="seg">${segs}</div>${nav}${rango}${kpis}
-    <div class="card"><h3>💵 Efectivo por agencia</h3>${lista(R.ags, 'agencias', R.ef, '')}</div>
+    <div class="card"><h3>💵 Rendido por agencia <span class="sub">efectivo + transferencias</span></h3>${lista(R.rend, 'agencias', R.ef + R.tr, '', null, id => desglose(R.agB[id] || 0, R.agM[id] || 0, R.agTr[id] || 0))}</div>
     <div class="card"><h3>🏆 Premios por cobrador</h3>${lista(R.cobs, 'cobradores', R.pr, 'g', R.cobsN)}</div>
     ${Object.keys(R.deps).length ? `<div class="card"><h3>🏦 Depósitos por concepto</h3>${lista(R.deps, 'depositos', R.dep, '')}</div>` : ''}
     ${tabla}
@@ -787,9 +886,9 @@ function wResumen() {
 function textoResumen() {
   const P = periodo(), R = agregar(P.a, P.b);
   const L = [`*CRz Control Diario*`, `📅 ${P.lbl}${P.total ? ' (' + P.sub + ')' : ''}`, ''];
-  L.push('*💵 Efectivo por agencia*');
-  Object.keys(R.ags).forEach(id => L.push(`• ${nomG('agencias', id)}: ${gs(R.ags[id])}`));
-  L.push(`*Total efectivo: ${gs(R.ef)}*`, '');
+  L.push('*💵 Rendido por agencia*');
+  Object.keys(R.rend).forEach(id => L.push(`• ${nomG('agencias', id)}: ${gs(R.rend[id])}`, `   ${desglose(R.agB[id] || 0, R.agM[id] || 0, R.agTr[id] || 0)}`));
+  L.push(`Efectivo: ${gs(R.b)}`, `Monedas: ${gs(R.m)}`, `Transferencias: ${gs(R.tr)}`, `*Total rendido: ${gs(R.ef + R.tr)}*`, '');
   if (Object.keys(R.deps).length) { L.push('*🏦 Depósitos*'); Object.keys(R.deps).forEach(id => L.push(`• ${nombre('depositos', id)}: ${gs(R.deps[id])}`)); L.push(`*Total depósitos: ${gs(R.dep)}*`, `Diferencia: ${gs(R.dep - R.ef)}`, ''); }
   L.push('*🏆 Premios por cobrador*');
   Object.keys(R.cobs).forEach(id => L.push(`• ${nomG('cobradores', id)}: ${gs(R.cobs[id])} (${R.cobsN[id]})`));
@@ -806,9 +905,16 @@ function textoDia() {
     L.push(`*Total: ${gs(prCob(d, UI.cob))}*`, `_${enLetras(prCob(d, UI.cob))}_`, '', `Total premios del día (todos): ${gs(prTot(d))}`);
     return L.join('\n');
   }
-  L.push('*💵 Efectivo*');
-  activos('agencias').forEach(a => L.push(`• ${nomG('agencias', a.id)}: ${gs(efAg(d, a.id).t)}`));
-  L.push(`*Suma total: ${gs(efTot(d))}*`, '');
+  if (UI.tab === 'efectivo' && UI.ag !== 'todas') {
+    const t = efAg(d, UI.ag), arr = (d.tr && d.tr[UI.ag]) || [];
+    L.push(`*💵 ${nomG('agencias', UI.ag)}*`, `Efectivo: ${gs(t.b)}`, `Monedas: ${gs(t.m)}`, `Transferencias: ${gs(trAg(d, UI.ag))}`);
+    arr.forEach((x, i) => L.push(`   ${i + 1}. ${gs(x.monto)}${x.nota ? ' – ' + x.nota : ''}`));
+    L.push(`*TOTAL: ${gs(rendAg(d, UI.ag))}*`, `_${enLetras(rendAg(d, UI.ag))}_`);
+    return L.join('\n');
+  }
+  L.push('*💵 Rendido por agencia*');
+  activos('agencias').forEach(a => { const t = efAg(d, a.id); L.push(`• ${nomG('agencias', a.id)}: ${gs(rendAg(d, a.id))}`, `   ${desglose(t.b, t.m, trAg(d, a.id))}`); });
+  L.push(`Efectivo + monedas: ${gs(efTot(d))}`, `Transferencias: ${gs(trTot(d))}`, `*Suma total: ${gs(rendTot(d))}*`, '');
   if (depTot(d)) { L.push('*🏦 Depósitos*'); activos('depositos').forEach(x => d.dep[x.id] && L.push(`• ${x.nombre}: ${gs(d.dep[x.id])}`)); L.push(`*Total depósitos: ${gs(depTot(d))}*`, `Diferencia: ${gs(depTot(d) - efTot(d))}`, ''); }
   L.push(`🏆 Total premios: ${gs(prTot(d))}`);
   return L.join('\n');
@@ -821,11 +927,11 @@ $('#btnShare').onclick = () => shareText(UI.tab === 'resumen' ? textoResumen() :
 function exportCSV() {
   const P = periodo();
   const ags = cfg().agencias, cobs = cfg().cobradores, deps = cfg().depositos;
-  const head = ['Fecha', 'Día'].concat(ags.map(a => 'Efectivo ' + nomG('agencias', a.id)), ['Total efectivo'], deps.map(x => 'Dep. ' + x.nombre), ['Total depósitos', 'Diferencia'], cobs.map(c => 'Premios ' + nomG('cobradores', c.id)), ['Total premios', 'Cant. premios']);
+  const head = ['Fecha', 'Día'].concat(ags.map(a => 'Efectivo ' + nomG('agencias', a.id)), ['Total efectivo'], ags.map(a => 'Transf. ' + nomG('agencias', a.id)), ['Total transferencias', 'Total rendido'], deps.map(x => 'Dep. ' + x.nombre), ['Total depósitos', 'Diferencia'], cobs.map(c => 'Premios ' + nomG('cobradores', c.id)), ['Total premios', 'Cant. premios']);
   const rows = [head];
   Object.keys(DB.dias).filter(k => k >= P.a && k <= P.b && hasData(DB.dias[k])).sort().forEach(k => {
     const d = DB.dias[k];
-    rows.push([dmy(k), dayName(k)].concat(ags.map(a => efAg(d, a.id).t), [efTot(d)], deps.map(x => (d.dep || {})[x.id] || 0), [depTot(d), depTot(d) - efTot(d)], cobs.map(c => prCob(d, c.id)), [prTot(d), Object.keys(d.pr || {}).reduce((s, id) => s + prCnt(d, id), 0)]));
+    rows.push([dmy(k), dayName(k)].concat(ags.map(a => efAg(d, a.id).t), [efTot(d)], ags.map(a => trAg(d, a.id)), [trTot(d), rendTot(d)], deps.map(x => (d.dep || {})[x.id] || 0), [depTot(d), depTot(d) - efTot(d)], cobs.map(c => prCob(d, c.id)), [prTot(d), Object.keys(d.pr || {}).reduce((s, id) => s + prCnt(d, id), 0)]));
   });
   const csv = '﻿' + rows.map(r => r.map(v => typeof v === 'number' ? v : '"' + String(v).replace(/"/g, '""') + '"').join(';')).join('\r\n');
   download(csv, `control-diario_${P.a}_${P.b}.csv`, 'text/csv;charset=utf-8');
