@@ -280,7 +280,7 @@ nav.tabs button.on .ic{filter:none;opacity:1;transform:translateY(-1px)}
    identificador, para no chocar con las demás apps del repositorio.
    ========================================================= */
 const APP_ID = 'crz-control-diario';
-const APP_VER = '1.3.0';
+const APP_VER = '1.4.0';
 const K_DATA = APP_ID + ':data';
 const K_UI = APP_ID + ':ui';
 const K_SNAP = APP_ID + ':snapshot';
@@ -344,18 +344,91 @@ function migrate(db) {
   }
   return db;
 }
-let saveT = null;
+/* ---------- Guardado seguro ----------
+   - Solo se escribe cuando hubo un cambio real (antes se guardaba también al cerrar
+     o minimizar, y una ventana abierta con datos viejos podía pisar lo nuevo).
+   - Antes de escribir se combinan los días guardados por otra ventana, así nunca se pierden.
+   - Si otra ventana guarda, esta se actualiza sola.
+   - Copia espejo en IndexedDB + copias automáticas diarias (últimos 30 días). */
+let saveT = null, dirty = false;
 function save() {
+  dirty = true;
   clearTimeout(saveT);
   saveT = setTimeout(saveNow, 250);
 }
-function saveNow() {
-  clearTimeout(saveT);
-  try { localStorage.setItem(K_DATA, JSON.stringify(DB)); }
-  catch (e) { toast('⚠️ No se pudo guardar: memoria llena'); }
+function diasConDatos(db) { return Object.keys((db && db.dias) || {}).filter(k => hasData(db.dias[k])).length; }
+function mergeDias(dst, src) {
+  // Agrega a dst los días que solo existen en src. Nunca borra ni pisa días existentes.
+  let n = 0;
+  if (!src || !src.dias) return 0;
+  for (const k of Object.keys(src.dias)) if (!dst.dias[k] && hasData(src.dias[k])) { dst.dias[k] = src.dias[k]; n++; }
+  for (const list of ['agencias', 'cobradores', 'depositos']) ((src.config || {})[list] || []).forEach(x => { if (!dst.config[list].find(y => y.id === x.id)) dst.config[list].push(x); });
+  return n;
 }
-window.addEventListener('pagehide', saveNow);
-document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
+function leerGuardado() { try { return JSON.parse(localStorage.getItem(K_DATA)); } catch (e) { return null; } }
+function saveNow(force) {
+  clearTimeout(saveT);
+  if (!dirty && !force) return;
+  const st = leerGuardado();
+  if (st && st.dias) mergeDias(DB, st);
+  try { localStorage.setItem(K_DATA, JSON.stringify(DB)); dirty = false; }
+  catch (e) { toast('⚠️ No se pudo guardar: memoria llena'); }
+  idbGuardar();
+}
+window.addEventListener('pagehide', () => saveNow());
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) saveNow();
+  else if (!dirty) recargarDeOtraVentana();
+});
+window.addEventListener('storage', e => { if (e.key === K_DATA && !dirty) recargarDeOtraVentana(); });
+function recargarDeOtraVentana() {
+  const st = leerGuardado(); if (!st || !st.dias) return;
+  const nuevo = migrate(st);
+  if (JSON.stringify(nuevo.dias) === JSON.stringify(DB.dias) && JSON.stringify(nuevo.config) === JSON.stringify(DB.config)) return;
+  const enEdicion = document.activeElement && /INPUT/.test(document.activeElement.tagName);
+  DB = nuevo; if (!enEdicion) render();
+}
+
+/* IndexedDB: espejo + copias diarias */
+const IDB_NAME = APP_ID + '-db';
+function idb() {
+  return new Promise((res, rej) => {
+    if (!('indexedDB' in window)) return rej('sin idb');
+    const r = indexedDB.open(IDB_NAME, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+async function idbSet(k, v) { const db = await idb(); return new Promise(res => { const tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').put(v, k); tx.oncomplete = () => res(true); tx.onerror = () => res(false); }); }
+async function idbGet(k) { const db = await idb(); return new Promise(res => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(null); }); }
+async function idbKeys() { const db = await idb(); return new Promise(res => { const q = db.transaction('kv').objectStore('kv').getAllKeys(); q.onsuccess = () => res(q.result || []); q.onerror = () => res([]); }); }
+async function idbDel(k) { const db = await idb(); return new Promise(res => { const tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').delete(k); tx.oncomplete = () => res(true); }); }
+let idbT = null;
+function idbGuardar() {
+  clearTimeout(idbT);
+  idbT = setTimeout(async () => {
+    try {
+      if (!diasConDatos(DB)) return;              // nunca guardar una copia vacía encima de una buena
+      const json = JSON.stringify(DB);
+      await idbSet('actual', json);
+      await idbSet('snap-' + todayISO(), json);   // una copia por día (se va actualizando)
+      const viejas = (await idbKeys()).filter(k => String(k).startsWith('snap-')).sort().reverse().slice(30);
+      for (const k of viejas) await idbDel(k);
+    } catch (e) {}
+  }, 400);
+}
+async function idbRecuperar() {
+  // Si localStorage perdió días que la copia espejo sí tiene, se recuperan solos.
+  try {
+    const raw = await idbGet('actual'); if (!raw) return;
+    const copia = JSON.parse(raw);
+    const n = mergeDias(DB, copia);
+    if (n) { dirty = true; saveNow(); render(); toast(`✔ Se recuperaron ${n} día(s) desde la copia automática`); }
+  } catch (e) {}
+}
+async function pedirPersistencia() {
+  try { if (navigator.storage && navigator.storage.persist && !(await navigator.storage.persisted())) await navigator.storage.persist(); } catch (e) {}
+}
 
 let DB = load();
 let UI = {};
@@ -998,6 +1071,10 @@ function vAjustes() {
     <div class="row"><div class="l"><b>Días con datos</b><small>Último respaldo: ${c.ultimoBackup ? new Date(c.ultimoBackup).toLocaleString('es-PY') : 'nunca'}</small></div><div class="r">${nDias}</div></div>
     <div class="btns"><button class="btn pri" id="bkExp">⬇️ Descargar respaldo</button><button class="btn" id="bkImp">⬆️ Restaurar respaldo</button></div>
     <p class="note">Guardá el archivo en Google Drive. Al restaurar, los datos del respaldo se combinan con los actuales (no se pierde nada de lo que ya tenés).</p></div>
+  <div class="card"><h3>🛟 Copias automáticas <span class="sub">últimos 30 días</span></h3>
+    <div id="snaps"><div class="empty">Buscando copias…</div></div>
+    <p class="note">La app guarda sola una copia por día dentro del teléfono. "Recuperar" agrega los días que falten, sin borrar nada.</p>
+    <p class="note">Los datos se guardan en esta dirección: <b>${esc(location.origin + location.pathname)}</b>. Abrí siempre la app desde el mismo ícono o el mismo enlace.</p></div>
   <div class="card"><h3>ℹ️ Acerca de</h3><p class="note" style="margin:0">CRz Control Diario v${APP_VER} · Funciona sin internet. Los datos quedan guardados solo en este dispositivo.</p></div>
   <div class="foot">CRz Control Diario · ${APP_ID}</div>`;
 }
@@ -1017,13 +1094,30 @@ function wAjustes() {
     if (p === false) return; if (!/^\d{4}$/.test(p)) return toast('El PIN debe tener 4 números');
     const p2 = await ask('Confirmar PIN', 'Repetí el PIN:', 'Confirmar', false, '<input type="password" inputmode="numeric" maxlength="4">');
     if (p2 !== p) return toast('Los PIN no coinciden');
-    cfg().pin = p; saveNow(); try { sessionStorage.setItem(APP_ID + ':ok', '1'); } catch (e) {} render(); toast('PIN activado');
+    cfg().pin = p; dirty = true; saveNow(); try { sessionStorage.setItem(APP_ID + ':ok', '1'); } catch (e) {} render(); toast('PIN activado');
   };
   if ($('#pinOn')) $('#pinOn').onclick = pinSet;
   if ($('#pinChg')) $('#pinChg').onclick = pinSet;
   if ($('#pinOff')) $('#pinOff').onclick = async () => { if (await ask('Quitar PIN', '¿Desactivar el PIN de acceso?', 'Quitar', true)) { cfg().pin = ''; save(); render(); } };
-  $('#bkExp').onclick = () => { cfg().ultimoBackup = Date.now(); saveNow(); download(JSON.stringify({ app: APP_ID, ver: APP_VER, fecha: new Date().toISOString(), data: DB }, null, 1), `respaldo_control-diario_${todayISO()}.json`, 'application/json'); render(); toast('Respaldo descargado'); };
+  $('#bkExp').onclick = () => { cfg().ultimoBackup = Date.now(); dirty = true; saveNow(); download(JSON.stringify({ app: APP_ID, ver: APP_VER, fecha: new Date().toISOString(), data: DB }, null, 1), `respaldo_control-diario_${todayISO()}.json`, 'application/json'); render(); toast('Respaldo descargado'); };
   $('#bkImp').onclick = () => $('#fileIn').click();
+  pintarSnaps();
+}
+async function pintarSnaps() {
+  const box = $('#snaps'); if (!box) return;
+  try {
+    const keys = (await idbKeys()).filter(k => String(k).startsWith('snap-')).sort().reverse();
+    if (!keys.length) { box.innerHTML = '<div class="empty">Todavía no hay copias. Se crean solas al cargar datos.</div>'; return; }
+    const rows = [];
+    for (const k of keys) { let n = 0; try { n = diasConDatos(JSON.parse(await idbGet(k))); } catch (e) {} const f = k.slice(5); rows.push(`<div class="row"><div class="l"><b>${DIAS3[pISO(f).getDay()]} ${dmy(f)}</b><small>${n} día(s) con datos</small></div><button class="btn sm" data-snap="${k}">Recuperar</button></div>`); }
+    box.innerHTML = rows.join('');
+    $$('[data-snap]').forEach(b => b.onclick = async () => {
+      const copia = JSON.parse(await idbGet(b.dataset.snap));
+      const n = mergeDias(DB, copia);
+      if (!n) return toast('No faltaba ningún día: todo ya está cargado');
+      dirty = true; saveNow(); render(); toast(`✔ Se recuperaron ${n} día(s)`);
+    });
+  } catch (e) { box.innerHTML = '<div class="empty">Este navegador no permite copias automáticas.</div>'; }
 }
 $('#fileIn').onchange = async e => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
@@ -1036,7 +1130,7 @@ $('#fileIn').onchange = async e => {
     let added = 0;
     for (const k of Object.keys(inc.dias)) if (!DB.dias[k] || !hasData(DB.dias[k])) { DB.dias[k] = inc.dias[k]; added++; }
     for (const list of ['agencias', 'cobradores', 'depositos']) (inc.config[list] || []).forEach(x => { if (!cfg()[list].find(y => y.id === x.id)) cfg()[list].push(x); });
-    DB = migrate(DB); saveNow(); render(); toast(`Restaurado: ${added} día(s) agregados`);
+    DB = migrate(DB); dirty = true; saveNow(); render(); toast(`Restaurado: ${added} día(s) agregados`);
   } catch (er) { toast('⚠️ El archivo no es un respaldo válido'); }
 };
 
@@ -1064,7 +1158,8 @@ function lockIfNeeded() {
 
 /* ---------- Inicio ---------- */
 initUI();
-saveNow(); // guarda la configuración migrada (los días cargados quedan intactos)
+pedirPersistencia();
+idbRecuperar().then(() => { if (diasConDatos(DB)) idbGuardar(); });
 applyTheme();
 paintDate();
 render();
