@@ -150,6 +150,7 @@ nav.tabs button.on .ic{filter:none;opacity:1;transform:translateY(-1px)}
 .dform label,.mlbl{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:700;color:var(--mut)}
 .dform label.wide{grid-column:1/-1}
 .fi{height:42px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);padding:0 10px;width:100%;font-size:15px;font-weight:600;outline:0;color:var(--txt)}
+textarea.fi{font-family:inherit;font-weight:500}
 .fi:focus{border-color:var(--pri);background:var(--card)}
 .dinfo{font-size:13px;color:var(--mut);margin-top:8px;min-height:18px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .seg.mini{margin:0;padding:3px;flex:0 0 auto}
@@ -338,7 +339,7 @@ body[data-tab="deudas"] .wrap{max-width:1180px}
    identificador, para no chocar con las demás apps del repositorio.
    ========================================================= */
 const APP_ID = 'crz-control-diario';
-const APP_VER = '1.6.0';
+const APP_VER = '1.7.0';
 const K_DATA = APP_ID + ':data';
 const K_UI = APP_ID + ':ui';
 const K_SNAP = APP_ID + ':snapshot';
@@ -1150,9 +1151,9 @@ function mergeDeudas(dst, src) {
 }
 
 /* =========================================================
-   CIERRE DE CAJA PARALELO (Resumen → Día)
-   Conteo físico de billetes y monedas, comparado con el efectivo
-   que rindieron los cobradores (billetes + monedas de todas las agencias).
+   CIERRE DE CAJA PARALELO · COBRO DE DEUDAS (Resumen → Día)
+   Conteo físico de billetes y monedas de la caja de cobro de deudas,
+   comparado con el total de PAGOS de deudas registrados ese día (pestaña Deudas).
    Se guarda en DB.dias[fecha].cierre = { c: {den: cant}, obs, t }
    ========================================================= */
 function cierreDe(d) { return (d && d.cierre) || { c: {}, obs: '' }; }
@@ -1163,44 +1164,52 @@ function cierreCalc(d) {
   MONEDAS.forEach(v => m += (c[v] || 0) * v);
   return { b, m, t: b + m };
 }
-function cobCant(d, v) { return Object.keys(d.ef || {}).reduce((s, id) => s + ((d.ef[id] || {})[v] || 0), 0); }
+function pagosDia(f) { return DB.deudas.filter(x => x.fecha === f && x.tipo === 'pago').sort((a, b) => (a.t || 0) - (b.t || 0)); }
+const pagosTot = f => pagosDia(f).reduce((s, x) => s + (x.monto || 0), 0);
 function cierreHay(d) { const c = cierreDe(d); return cierreCalc(d).t > 0 || !!(c.obs || '').trim(); }
 function difTxt(dif) { return dif === 0 ? 'Cuadra ✔' : dif > 0 ? 'Sobrante' : 'Faltante'; }
 
 function cardCierre(f) {
-  const d = getDay(f), c = cierreDe(d).c || {}, k = cierreCalc(d), sis = efTot(d), dif = k.t - sis;
-  const row = (v, mon) => { const q = c[v] || 0, qc = cobCant(d, v);
-    return `<div class="den cden"><div class="face"><i class="${mon ? 'm' : ''}">${mon ? 'Moneda' : 'Billete'}</i>${fmt(v)}</div>
+  const d = getDay(f), c = cierreDe(d).c || {}, k = cierreCalc(d);
+  const row = (v, mon) => { const q = c[v] || 0;
+    return `<div class="den"><div class="face"><i class="${mon ? 'm' : ''}">${mon ? 'Moneda' : 'Billete'}</i>${fmt(v)}</div>
       <input class="qty" data-cden="${v}" type="text" inputmode="numeric" autocomplete="off" value="${q || ''}" placeholder="0" aria-label="Cantidad contada de ${fmt(v)}">
-      <div class="sub money ${q ? '' : 'z'}" id="cs-${v}">${fmt(q * v)}</div>
-      <div class="ccob ${q !== qc ? 'dif' : ''}" id="cc-${v}" title="Cantidad según cobradores">${qc}</div></div>`; };
-  return `<div class="card" id="cierreCard"><h3>🧾 Cierre de caja <span class="sub">${dayName(f)} ${dmy(f)}</span></h3>
-    <p class="note" style="margin:0 0 6px">Contá lo que tenés en mano. La última columna muestra la cantidad que rindieron los cobradores; se marca en color si no coincide.</p>
-    <div class="den chead"><span>Denominación</span><span style="text-align:center">Contado</span><span style="text-align:right">Subtotal</span><span style="text-align:center">Cobr.</span></div>
+      <div class="sub money ${q ? '' : 'z'}" id="cs-${v}">${fmt(q * v)}</div></div>`; };
+  return `<div class="card" id="cierreCard"><h3>🧾 Caja paralela · Cobro de deudas <span class="sub">${dayName(f)} ${dmy(f)}</span></h3>
+    <p class="note" style="margin:0 0 6px">Contá el dinero de los pagos de deudas que recibiste. Tiene que coincidir con el total de pagos registrados ese día en la pestaña Deudas.</p>
     <div class="sect">Billetes</div>${BILLETES.map(v => row(v, false)).join('')}
     <div class="subt"><span>Total billetes</span><span class="money" id="ckB">${gs(k.b)}</span></div>
     <div class="sect">Monedas</div>${MONEDAS.map(v => row(v, true)).join('')}
     <div class="subt"><span>Total monedas</span><span class="money" id="ckM">${gs(k.m)}</span></div>
     <div class="tot"><span>TOTAL CONTADO</span><span class="money" id="ckT">${gs(k.t)}</span></div>
-    <div id="ckCmp">${cierreCmp(d)}</div>
-    <label class="mlbl" style="margin-top:12px">Observaciones<textarea id="ckObs" class="fi" rows="2" maxlength="300" placeholder="Ej.: faltan 2 billetes de 10.000 de Pichi" style="height:auto;padding:8px 10px;resize:vertical">${esc(cierreDe(d).obs || '')}</textarea></label>
+    <div id="ckCmp">${cierreCmp(d, f)}</div>
+    <div class="sect" style="display:flex;justify-content:space-between"><span>Pagos de deudas recibidos</span><span class="lnk" data-gotab="deudas">ir a Deudas</span></div>
+    ${listaPagos(f)}
+    <label class="mlbl" style="margin-top:12px">Observaciones<textarea id="ckObs" class="fi" rows="2" maxlength="300" placeholder="Ej.: el corredor 35 pagó con transferencia" style="height:auto;padding:8px 10px;resize:vertical">${esc(cierreDe(d).obs || '')}</textarea></label>
     <div class="btns noprint"><button class="btn pri" id="ckPdf">📄 Guardar PDF</button><button class="btn" id="ckPrint">🖨️ Imprimir</button><button class="btn sm" id="ckClear" style="margin-left:auto">↺ Poner en cero</button></div>
   </div>`;
 }
-function cierreCmp(d) {
-  const k = cierreCalc(d), sis = efTot(d), dif = k.t - sis;
-  return `<div class="row" style="margin-top:8px"><div class="l"><b>Efectivo según cobradores</b><small>Billetes + monedas de todas las agencias</small></div><div class="r money">${gs(sis)}</div></div>
+function listaPagos(f) {
+  const ps = pagosDia(f);
+  if (!ps.length) return '<div class="empty" style="padding:10px">No hay pagos de deudas registrados este día.</div>';
+  return `<div class="tscroll"><table class="tbl"><thead><tr><th>#</th><th class="cc">Corredor</th><th class="tl">Cobrador</th><th>Monto</th><th class="tl">Referencia</th></tr></thead><tbody>
+    ${ps.map((x, i) => `<tr><td>${i + 1}</td><td class="cc"><b>${esc(x.corredor)}</b>${x.ag ? `<div class="mini">${esc(x.ag)}</div>` : ''}</td><td class="tl">${esc(cobNom(x.cob))}</td><td class="money">${fmt(x.monto)}</td><td class="tl mut">${esc(x.ref || '')}</td></tr>`).join('')}
+    </tbody><tfoot><tr><td colspan="3">Total (${ps.length})</td><td class="money">${fmt(pagosTot(f))}</td><td></td></tr></tfoot></table></div>`;
+}
+function cierreCmp(d, f) {
+  const k = cierreCalc(d), sis = pagosTot(f), dif = k.t - sis;
+  return `<div class="row" style="margin-top:8px"><div class="l"><b>Pagos de deudas recibidos</b><small>${pagosDia(f).length} pago(s) registrados el ${dmy(f)}</small></div><div class="r money">${gs(sis)}</div></div>
     <div class="row"><div class="l"><b>Total contado</b></div><div class="r money">${gs(k.t)}</div></div>
     <div class="row total"><div class="l"><b>Diferencia</b><small>${k.t || sis ? difTxt(dif) : 'Sin datos'}</small></div><div class="r money ${dif > 0 ? 'pos' : dif < 0 ? 'neg' : ''}" style="font-size:18px">${gs(dif)}</div></div>`;
 }
 function cardCierresLista(a, b) {
-  const ks = Object.keys(DB.dias).filter(k => k >= a && k <= b && cierreHay(DB.dias[k])).sort();
+  const ks = [...new Set(Object.keys(DB.dias).filter(k => k >= a && k <= b && cierreHay(DB.dias[k])).concat(DB.deudas.filter(x => x.tipo === 'pago' && x.fecha >= a && x.fecha <= b).map(x => x.fecha)))].sort();
   if (!ks.length) return '';
   let tc = 0, ts = 0;
-  const rows = ks.map(k => { const d = DB.dias[k], c = cierreCalc(d).t, s = efTot(d), df = c - s; tc += c; ts += s;
+  const rows = ks.map(k => { const c = cierreCalc(getDay(k)).t, s = pagosTot(k), df = c - s; tc += c; ts += s;
     return `<tr class="clk" data-dia="${k}"><td><b>${DIAS3[pISO(k).getDay()]} ${dmy(k).slice(0, 5)}</b></td><td class="money">${fmt(c)}</td><td class="money">${fmt(s)}</td><td class="money ${df > 0 ? 'pos' : df < 0 ? 'neg' : ''}"><b>${fmt(df)}</b></td></tr>`; }).join('');
-  return `<div class="card"><h3>🧾 Cierres de caja <span class="sub">tocá un día para verlo</span></h3><div class="tscroll"><table class="tbl">
-    <thead><tr><th>Fecha</th><th>Contado</th><th>Cobradores</th><th>Diferencia</th></tr></thead><tbody>${rows}</tbody>
+  return `<div class="card"><h3>🧾 Caja paralela · Cobro de deudas <span class="sub">tocá un día para verlo</span></h3><div class="tscroll"><table class="tbl">
+    <thead><tr><th>Fecha</th><th>Contado</th><th>Pagos deudas</th><th>Diferencia</th></tr></thead><tbody>${rows}</tbody>
     <tfoot><tr><td>Total (${ks.length})</td><td class="money">${fmt(tc)}</td><td class="money">${fmt(ts)}</td><td class="money">${fmt(tc - ts)}</td></tr></tfoot></table></div></div>`;
 }
 function wCierre() {
@@ -1222,47 +1231,43 @@ function wCierre() {
   $('#ckPdf').onclick = () => pdfCierre(f);
   $('#ckClear').onclick = async () => {
     const d = getDay(f); if (!d.cierre) return toast('Ya está en cero');
-    if (!await ask('Poner en cero', `¿Borrar el conteo del cierre del ${dmy(f)}?`, 'Poner en cero', true)) return;
+    if (!await ask('Poner en cero', `¿Borrar el conteo de la caja paralela del ${dmy(f)}?`, 'Poner en cero', true)) return;
     const prev = JSON.parse(JSON.stringify(d.cierre)); delete d.cierre; save(); render();
-    toast('Cierre en cero', 'Deshacer', () => { getDay(f, true).cierre = prev; save(); render(); });
+    toast('Caja paralela en cero', 'Deshacer', () => { getDay(f, true).cierre = prev; save(); render(); });
   };
 }
 function paintCierre() {
-  const d = getDay(UI.ref), c = cierreDe(d).c || {}, k = cierreCalc(d);
-  BILLETES.concat(MONEDAS).forEach(v => {
-    const el = $('#cs-' + v); if (el) { el.textContent = fmt((c[v] || 0) * v); el.classList.toggle('z', !c[v]); }
-    const cc = $('#cc-' + v); if (cc) cc.classList.toggle('dif', (c[v] || 0) !== cobCant(d, v));
-  });
+  const f = UI.ref, d = getDay(f), c = cierreDe(d).c || {}, k = cierreCalc(d);
+  BILLETES.concat(MONEDAS).forEach(v => { const el = $('#cs-' + v); if (el) { el.textContent = fmt((c[v] || 0) * v); el.classList.toggle('z', !c[v]); } });
   $('#ckB').textContent = gs(k.b); $('#ckM').textContent = gs(k.m); $('#ckT').textContent = gs(k.t);
-  $('#ckCmp').innerHTML = cierreCmp(d);
+  $('#ckCmp').innerHTML = cierreCmp(d, f);
 }
 
 /* ----- Datos comunes para imprimir / PDF ----- */
 function cierreDatos(f) {
-  const d = getDay(f), c = cierreDe(d).c || {}, k = cierreCalc(d), sis = efTot(d);
-  const den = BILLETES.map(v => ({ v, tipo: 'Billete', q: c[v] || 0, qc: cobCant(d, v) })).concat(MONEDAS.map(v => ({ v, tipo: 'Moneda', q: c[v] || 0, qc: cobCant(d, v) })));
-  const ags = activos('agencias').map(a => ({ n: nomG('agencias', a.id), ef: efAg(d, a.id).t, tr: trAg(d, a.id) })).filter(x => x.ef || x.tr);
-  return { f, d, den, k, sis, dif: k.t - sis, ags, tr: trTot(d), dep: depTot(d), pr: prTot(d), prN: Object.keys(d.pr || {}).reduce((s, id) => s + prCnt(d, id), 0), obs: (cierreDe(d).obs || '').trim() };
+  const d = getDay(f), c = cierreDe(d).c || {}, k = cierreCalc(d), sis = pagosTot(f);
+  const den = BILLETES.map(v => ({ v, tipo: 'Billete', q: c[v] || 0 })).concat(MONEDAS.map(v => ({ v, tipo: 'Moneda', q: c[v] || 0 })));
+  const pagos = pagosDia(f).map(x => ({ corr: x.corredor + (x.ag ? ' (' + x.ag + ')' : ''), cob: cobNom(x.cob), monto: x.monto, ref: x.ref || '' }));
+  return { f, den, k, sis, dif: k.t - sis, pagos, obs: (cierreDe(d).obs || '').trim() };
 }
 function imprimirCierre(f) {
   const X = cierreDatos(f);
-  const tr = (a, b, c, cls = '') => `<tr class="${cls}"><td>${a}</td><td>${b}</td><td>${c}</td></tr>`;
-  const html = `<div class="ph"><div><h1>Cierre de caja</h1><div>CRz Control Diario</div></div><div class="pf"><b>${dayName(f)} ${dmy(f)}</b><div>Impreso: ${new Date().toLocaleString('es-PY')}</div></div></div>
+  const tr = (a, b, cls = '') => `<tr class="${cls}"><td>${a}</td><td>${b}</td></tr>`;
+  const html = `<div class="ph"><div><h1>Caja paralela · Cobro de deudas</h1><div>CRz Control Diario</div></div><div class="pf"><b>${dayName(f)} ${dmy(f)}</b><div>Impreso: ${new Date().toLocaleString('es-PY')}</div></div></div>
     <h2>Conteo de efectivo</h2>
-    <table><thead><tr><th>Denominación</th><th>Cantidad</th><th>Subtotal</th><th>Cobradores</th></tr></thead><tbody>
-    ${X.den.map(x => `<tr${x.v === 1000 ? ' class="sep"' : ''}><td>${x.tipo} ${fmt(x.v)}</td><td>${x.q}</td><td>${fmt(x.q * x.v)}</td><td${x.q !== x.qc ? ' class="mk"' : ''}>${x.qc}</td></tr>`).join('')}
-    </tbody><tfoot><tr><td>Total billetes</td><td></td><td>${fmt(X.k.b)}</td><td></td></tr><tr><td>Total monedas</td><td></td><td>${fmt(X.k.m)}</td><td></td></tr><tr class="big"><td>TOTAL CONTADO</td><td></td><td>Gs. ${fmt(X.k.t)}</td><td></td></tr></tfoot></table>
+    <table><thead><tr><th>Denominación</th><th>Cantidad</th><th>Subtotal</th></tr></thead><tbody>
+    ${X.den.map(x => `<tr${x.v === 1000 ? ' class="sep"' : ''}><td>${x.tipo} ${fmt(x.v)}</td><td>${x.q}</td><td>${fmt(x.q * x.v)}</td></tr>`).join('')}
+    </tbody><tfoot><tr><td>Total billetes</td><td></td><td>${fmt(X.k.b)}</td></tr><tr><td>Total monedas</td><td></td><td>${fmt(X.k.m)}</td></tr><tr class="big"><td>TOTAL CONTADO</td><td></td><td>Gs. ${fmt(X.k.t)}</td></tr></tfoot></table>
     <h2>Comparación</h2>
-    <table class="kv"><tbody>${tr('Efectivo según cobradores', '', 'Gs. ' + fmt(X.sis))}${tr('Total contado', '', 'Gs. ' + fmt(X.k.t))}${tr('<b>Diferencia</b> (' + difTxt(X.dif) + ')', '', '<b>Gs. ' + fmt(X.dif) + '</b>', 'big')}</tbody></table>
-    <h2>Resumen del día</h2>
-    <table class="kv"><thead><tr><th>Agencia / cobrador</th><th>Efectivo</th><th>Transferencias</th></tr></thead><tbody>
-    ${X.ags.map(a => tr(esc(a.n), fmt(a.ef), fmt(a.tr))).join('') || tr('Sin rendiciones cargadas', '', '')}
-    ${tr('<b>Total</b>', '<b>' + fmt(X.sis) + '</b>', '<b>' + fmt(X.tr) + '</b>')}</tbody></table>
-    <table class="kv"><tbody>${tr('Depósitos del día', '', 'Gs. ' + fmt(X.dep))}${tr('Premios del día (' + X.prN + ')', '', 'Gs. ' + fmt(X.pr))}</tbody></table>
+    <table class="kv"><tbody>${tr('Pagos de deudas recibidos (' + X.pagos.length + ')', 'Gs. ' + fmt(X.sis))}${tr('Total contado', 'Gs. ' + fmt(X.k.t))}${tr('<b>Diferencia</b> (' + difTxt(X.dif) + ')', '<b>Gs. ' + fmt(X.dif) + '</b>', 'big')}</tbody></table>
+    <h2>Detalle de pagos recibidos</h2>
+    <table><thead><tr><th>#</th><th style="text-align:left">Corredor</th><th style="text-align:left">Cobrador</th><th>Monto</th><th style="text-align:left">Referencia</th></tr></thead><tbody>
+    ${X.pagos.map((p, i) => `<tr><td>${i + 1}</td><td style="text-align:left">${esc(p.corr)}</td><td style="text-align:left">${esc(p.cob)}</td><td>${fmt(p.monto)}</td><td style="text-align:left">${esc(p.ref)}</td></tr>`).join('') || '<tr><td colspan="5" style="text-align:center">Sin pagos registrados</td></tr>'}
+    </tbody><tfoot><tr><td colspan="3">Total</td><td>${fmt(X.sis)}</td><td></td></tr></tfoot></table>
     ${X.obs ? `<h2>Observaciones</h2><p class="obs">${esc(X.obs)}</p>` : ''}
     <div class="firmas"><div>Entregado por</div><div>Recibido por</div></div>`;
   $('#printArea').innerHTML = html;
-  const t = document.title; document.title = 'Cierre_de_caja_' + dmy(f).replace(/\//g, '-');
+  const t = document.title; document.title = 'Caja_paralela_deudas_' + dmy(f).replace(/\//g, '-');
   document.body.classList.add('pc');
   setTimeout(() => { print(); document.body.classList.remove('pc'); document.title = t; }, 50);
 }
@@ -1283,43 +1288,44 @@ async function pdfCierre(f) {
   const doc = new lib.jsPDF({ unit: 'mm', format: 'a4' });
   const L = 18, R = 192, W = R - L; let y = 20;
   const teal = [15, 118, 110], gris = [93, 112, 107];
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(...teal); doc.text('Cierre de caja', L, y);
+  const nuevaPag = () => { if (y > 270) { doc.addPage(); y = 20; } };
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(17); doc.setTextColor(...teal); doc.text('Caja paralela - Cobro de deudas', L, y);
   doc.setFontSize(12); doc.setTextColor(20); doc.text(`${dayName(f)} ${dmy(f)}`, R, y, { align: 'right' });
   y += 6; doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...gris);
   doc.text('CRz Control Diario', L, y); doc.text('Generado: ' + new Date().toLocaleString('es-PY'), R, y, { align: 'right' });
   y += 4; doc.setDrawColor(...teal); doc.setLineWidth(0.6); doc.line(L, y, R, y); y += 8;
-  const h2 = t => { doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...teal); doc.text(t.toUpperCase(), L, y); y += 2; doc.setDrawColor(210); doc.setLineWidth(0.2); doc.line(L, y, R, y); y += 5; doc.setTextColor(20); };
-  const cols = [L + 2, 100, 140, R - 2];
-  const fila = (a, b, c, e, opt = {}) => {
+  const h2 = t => { nuevaPag(); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...teal); doc.text(t.toUpperCase(), L, y); y += 2; doc.setDrawColor(210); doc.setLineWidth(0.2); doc.line(L, y, R, y); y += 5; doc.setTextColor(20); };
+  // celdas: [{t, x, align}]
+  const fila = (cells, opt = {}) => {
+    nuevaPag();
     if (opt.fill) { doc.setFillColor(...opt.fill); doc.rect(L, y - 4.2, W, 6.2, 'F'); }
-    doc.setFont('helvetica', opt.bold ? 'bold' : 'normal'); doc.setFontSize(opt.size || 10);
-    doc.setTextColor(...(opt.color || [20, 20, 20]));
-    doc.text(String(a), cols[0], y);
-    if (b !== '') doc.text(String(b), cols[1], y, { align: 'right' });
-    if (c !== '') doc.text(String(c), cols[2] + 10, y, { align: 'right' });
-    if (e !== '') { if (opt.mk) doc.setTextColor(180, 83, 9); doc.text(String(e), cols[3], y, { align: 'right' }); }
+    doc.setFont('helvetica', opt.bold ? 'bold' : 'normal'); doc.setFontSize(opt.size || 10); doc.setTextColor(...(opt.color || [20, 20, 20]));
+    cells.forEach(c => { if (c.t !== '' && c.t != null) doc.text(String(c.t), c.x, y, { align: c.a || 'left' }); });
     y += opt.h || 6;
   };
+  const C3 = (a, b, c, o) => fila([{ t: a, x: L + 2 }, { t: b, x: 110, a: 'right' }, { t: c, x: R - 2, a: 'right' }], o);
   h2('Conteo de efectivo');
-  fila('Denominación', 'Cantidad', 'Subtotal', 'Cobradores', { bold: true, size: 9, color: gris });
-  X.den.forEach(x => { if (x.v === 1000) y += 1; fila(`${x.tipo} ${fmt(x.v)}`, x.q, fmt(x.q * x.v), x.qc, { mk: x.q !== x.qc }); });
-  y += 1; fila('Total billetes', '', fmt(X.k.b), '', { bold: true, fill: [241, 245, 244] });
-  fila('Total monedas', '', fmt(X.k.m), '', { bold: true, fill: [241, 245, 244] });
-  fila('TOTAL CONTADO', '', 'Gs. ' + fmt(X.k.t), '', { bold: true, size: 11.5, fill: [224, 242, 239], h: 8 });
+  C3('Denominación', 'Cantidad', 'Subtotal', { bold: true, size: 9, color: gris });
+  X.den.forEach(x => { if (x.v === 1000) y += 1; C3(`${x.tipo} ${fmt(x.v)}`, x.q, fmt(x.q * x.v)); });
+  y += 1; C3('Total billetes', '', fmt(X.k.b), { bold: true, fill: [241, 245, 244] });
+  C3('Total monedas', '', fmt(X.k.m), { bold: true, fill: [241, 245, 244] });
+  C3('TOTAL CONTADO', '', 'Gs. ' + fmt(X.k.t), { bold: true, size: 11.5, fill: [224, 242, 239], h: 8 });
   y += 3; h2('Comparación');
-  fila('Efectivo según cobradores', '', 'Gs. ' + fmt(X.sis), '');
-  fila('Total contado', '', 'Gs. ' + fmt(X.k.t), '');
-  fila(`Diferencia (${difTxt(X.dif).replace(' ✔', '')})`, '', 'Gs. ' + fmt(X.dif), '', { bold: true, size: 11.5, fill: X.dif === 0 ? [220, 252, 231] : X.dif > 0 ? [220, 252, 231] : [254, 226, 226], h: 8 });
-  y += 3; h2('Resumen del día');
-  fila('Agencia / cobrador', 'Efectivo', 'Transferencias', '', { bold: true, size: 9, color: gris });
-  (X.ags.length ? X.ags : [{ n: 'Sin rendiciones cargadas', ef: '', tr: '' }]).forEach(a => fila(a.n, a.ef === '' ? '' : fmt(a.ef), a.tr === '' ? '' : fmt(a.tr), ''));
-  fila('Total', fmt(X.sis), fmt(X.tr), '', { bold: true, fill: [241, 245, 244] });
-  y += 2; fila('Depósitos del día', '', 'Gs. ' + fmt(X.dep), ''); fila(`Premios del día (${X.prN})`, '', 'Gs. ' + fmt(X.pr), '');
+  C3(`Pagos de deudas recibidos (${X.pagos.length})`, '', 'Gs. ' + fmt(X.sis));
+  C3('Total contado', '', 'Gs. ' + fmt(X.k.t));
+  C3(`Diferencia (${difTxt(X.dif).replace(' ✔', '')})`, '', 'Gs. ' + fmt(X.dif), { bold: true, size: 11.5, fill: X.dif < 0 ? [254, 226, 226] : [220, 252, 231], h: 8 });
+  y += 3; h2('Detalle de pagos recibidos');
+  const P5 = (n, a, b, c, d, o) => fila([{ t: n, x: L + 2 }, { t: a, x: L + 10 }, { t: b, x: L + 62 }, { t: c, x: 140, a: 'right' }, { t: d, x: 145 }], o);
+  P5('#', 'Corredor', 'Cobrador', 'Monto', 'Referencia', { bold: true, size: 9, color: gris });
+  if (!X.pagos.length) P5('', 'Sin pagos registrados', '', '', '');
+  X.pagos.forEach((p, i) => P5(i + 1, doc.splitTextToSize(p.corr, 50)[0], doc.splitTextToSize(p.cob, 50)[0], fmt(p.monto), doc.splitTextToSize(p.ref, 45)[0], { size: 9.5 }));
+  P5('', 'Total', '', fmt(X.sis), '', { bold: true, fill: [241, 245, 244] });
   if (X.obs) { y += 3; h2('Observaciones'); doc.setFont('helvetica', 'normal'); doc.setFontSize(10); const ls = doc.splitTextToSize(X.obs, W - 4); doc.text(ls, L + 2, y); y += ls.length * 5; }
-  y = Math.max(y + 22, 262); doc.setDrawColor(120); doc.setLineWidth(0.3);
+  y = Math.max(y + 22, 262); if (y > 280) { doc.addPage(); y = 40; }
+  doc.setDrawColor(120); doc.setLineWidth(0.3);
   doc.line(L + 5, y, L + 75, y); doc.line(R - 75, y, R - 5, y);
   doc.setFontSize(9); doc.setTextColor(...gris); doc.text('Entregado por', L + 40, y + 5, { align: 'center' }); doc.text('Recibido por', R - 40, y + 5, { align: 'center' });
-  doc.save('Cierre_de_caja_' + dmy(f).replace(/\//g, '-') + '.pdf');
+  doc.save('Caja_paralela_deudas_' + dmy(f).replace(/\//g, '-') + '.pdf');
   toast('PDF guardado');
 }
 
@@ -1421,7 +1427,7 @@ function wResumen() {
     bindPicker($('#rHc'), $('#rHp'), () => UI.rHasta, f => { UI.rHasta = f; saveUI(); render(); });
   }
   wCierre();
-  $$('[data-gotab]').forEach(r => r.onclick = () => { UI.tab = r.dataset.gotab; saveUI(); render(); scrollTo(0, 0); });
+  $$('[data-gotab]').forEach(r => r.onclick = () => { if (UI.per === 'dia') { UI.fecha = UI.ref; paintDate(); } UI.tab = r.dataset.gotab; saveUI(); render(); scrollTo(0, 0); });
   $$('[data-dia]').forEach(tr => tr.onclick = () => { UI.per = 'dia'; UI.ref = tr.dataset.dia; saveUI(); render(); scrollTo(0, 0); });
   $$('[data-mes]').forEach(tr => tr.onclick = () => { UI.per = 'mes'; UI.ref = tr.dataset.mes + '-01'; saveUI(); render(); scrollTo(0, 0); });
   if ($('#rWa')) {
