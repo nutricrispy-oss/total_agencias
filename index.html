@@ -146,6 +146,35 @@ nav.tabs button.on .ic{filter:none;opacity:1;transform:translateY(-1px)}
 .pr .w{font-size:12px;color:var(--mut);font-style:italic;line-height:1.25}
 .pr .a{display:flex;gap:4px}
 .pr .a button{width:34px;height:34px;border-radius:10px;background:var(--bg2);font-size:15px}
+.dform{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.dform label,.mlbl{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:700;color:var(--mut)}
+.dform label.wide{grid-column:1/-1}
+.fi{height:42px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);padding:0 10px;width:100%;font-size:15px;font-weight:600;outline:0;color:var(--txt)}
+.fi:focus{border-color:var(--pri);background:var(--card)}
+.dinfo{font-size:13px;color:var(--mut);margin-top:8px;min-height:18px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.seg.mini{margin:0;padding:3px;flex:0 0 auto}
+.seg.mini button{padding:5px 14px;font-size:12.5px}
+.bdg{display:inline-block;border-radius:8px;padding:2px 8px;font-size:11.5px;font-weight:800;background:var(--bg2);color:var(--mut)}
+.bdg.bad{background:var(--badSoft);color:var(--bad)} .bdg.ok{background:var(--okSoft);color:var(--ok)} .bdg.warn{background:var(--warnSoft);color:var(--warn)}
+.tbl .mini{font-size:10.5px;color:var(--mut);font-weight:600}
+.tbl th.tl,.tbl td.tl{text-align:left}
+.tbl td.mut,.mut{color:var(--mut)}
+.lnk{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
+.ibtn{width:32px;height:32px;border-radius:9px;background:var(--bg2);font-size:14px;margin-left:4px}
+.btn.wa{background:#25a244;color:#fff;border-color:#25a244}
+.srch{display:flex;align-items:center;gap:4px;border:1.5px solid var(--line);border-radius:10px;padding:0 6px;height:34px;background:var(--bg)}
+.srch input{border:0;outline:0;background:none;width:120px;font-size:14px;color:var(--txt)}
+.srch button{color:var(--mut);font-size:13px}
+.grid2{display:block}
+body[data-tab="deudas"] .wrap{max-width:1180px}
+@media (min-width:1040px){ body[data-tab="deudas"] .grid2{display:grid;grid-template-columns:1.15fr 1fr;gap:14px;align-items:start} body[data-tab="deudas"] .grid2 .card{margin:14px 0 0} }
+.tbl td.cc,.tbl th.cc{text-align:left}
+.row.clk{cursor:pointer}
+.mchips{display:flex;flex-wrap:wrap;gap:8px}
+.mchip{display:inline-flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--line);border-radius:20px;padding:5px 6px 5px 12px;font-weight:600;font-size:13.5px}
+.mchip button{width:22px;height:22px;border-radius:50%;background:var(--card);font-size:11px;color:var(--bad)}
+.mlbl{margin-bottom:10px;text-align:left}
+.mlbl input{margin-bottom:0!important;letter-spacing:0!important;text-align:left!important;font-size:16px!important}
 .pr .n.tr{background:var(--soft);color:var(--pri)}
 .nota{width:100%;height:38px;margin-top:8px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);padding:0 10px;font-size:14px;outline:0}
 .nota:focus{border-color:var(--pri)}
@@ -237,7 +266,7 @@ nav.tabs button.on .ic{filter:none;opacity:1;transform:translateY(-1px)}
 <header>
   <div class="wrap">
     <div class="hrow">
-      <div class="brand"><img src="icon-192.png" alt=""><div><b>CRz Control Diario</b><small id="hsub">Efectivo · Depósitos · Premios</small></div></div>
+      <div class="brand"><img src="icon-192.png" alt=""><div><b>CRz Control Diario</b><small id="hsub">Efectivo · Premios · Depósitos · Deudas</small></div></div>
       <div style="display:flex;gap:6px">
         <button class="hbtn" id="btnShare" title="Compartir por WhatsApp">💬</button>
         <button class="hbtn" id="btnTheme" title="Cambiar tema">🌙</button>
@@ -263,6 +292,7 @@ nav.tabs button.on .ic{filter:none;opacity:1;transform:translateY(-1px)}
   <button data-tab="efectivo"><span class="ic">💵</span>Efectivo</button>
   <button data-tab="premios"><span class="ic">🏆</span>Premios</button>
   <button data-tab="depositos"><span class="ic">🏦</span>Depósitos</button>
+  <button data-tab="deudas"><span class="ic">📒</span>Deudas</button>
   <button data-tab="resumen"><span class="ic">📊</span>Resumen</button>
   <button data-tab="ajustes"><span class="ic">⚙️</span>Ajustes</button>
 </div></nav>
@@ -280,7 +310,7 @@ nav.tabs button.on .ic{filter:none;opacity:1;transform:translateY(-1px)}
    identificador, para no chocar con las demás apps del repositorio.
    ========================================================= */
 const APP_ID = 'crz-control-diario';
-const APP_VER = '1.4.0';
+const APP_VER = '1.5.0';
 const K_DATA = APP_ID + ':data';
 const K_UI = APP_ID + ':ui';
 const K_SNAP = APP_ID + ':snapshot';
@@ -309,6 +339,7 @@ const DEFAULT_CONFIG = () => ({
     { id: 'depwb', nombre: 'Dep. WB', activo: true },
     { id: 'corpos', nombre: 'Corpos', activo: true }
   ],
+  motivos: ['Deuda', 'Diferencia', 'Premio', 'Bloqueado', 'Pagando', 'Otro'],
   tema: 'auto',
   pin: '',
   ultimoBackup: null
@@ -342,6 +373,9 @@ function migrate(db) {
       if (x.grupo === undefined) x.grupo = d && d.grupo ? d.grupo : '';
     });
   }
+  if (!Array.isArray(db.deudas)) db.deudas = [];
+  if (!Array.isArray(db.deudasDel)) db.deudasDel = [];
+  if (!Array.isArray(db.config.motivos)) db.config.motivos = def.motivos;
   return db;
 }
 /* ---------- Guardado seguro ----------
@@ -363,6 +397,7 @@ function mergeDias(dst, src) {
   if (!src || !src.dias) return 0;
   for (const k of Object.keys(src.dias)) if (!dst.dias[k] && hasData(src.dias[k])) { dst.dias[k] = src.dias[k]; n++; }
   for (const list of ['agencias', 'cobradores', 'depositos']) ((src.config || {})[list] || []).forEach(x => { if (!dst.config[list].find(y => y.id === x.id)) dst.config[list].push(x); });
+  n += mergeDeudas(dst, src);
   return n;
 }
 function leerGuardado() { try { return JSON.parse(localStorage.getItem(K_DATA)); } catch (e) { return null; } }
@@ -384,7 +419,7 @@ window.addEventListener('storage', e => { if (e.key === K_DATA && !dirty) recarg
 function recargarDeOtraVentana() {
   const st = leerGuardado(); if (!st || !st.dias) return;
   const nuevo = migrate(st);
-  if (JSON.stringify(nuevo.dias) === JSON.stringify(DB.dias) && JSON.stringify(nuevo.config) === JSON.stringify(DB.config)) return;
+  if (JSON.stringify(nuevo) === JSON.stringify(DB)) return;
   const enEdicion = document.activeElement && /INPUT/.test(document.activeElement.tagName);
   DB = nuevo; if (!enEdicion) render();
 }
@@ -408,7 +443,7 @@ function idbGuardar() {
   clearTimeout(idbT);
   idbT = setTimeout(async () => {
     try {
-      if (!diasConDatos(DB)) return;              // nunca guardar una copia vacía encima de una buena
+      if (!diasConDatos(DB) && !DB.deudas.length) return;              // nunca guardar una copia vacía encima de una buena
       const json = JSON.stringify(DB);
       await idbSet('actual', json);
       await idbSet('snap-' + todayISO(), json);   // una copia por día (se va actualizando)
@@ -549,9 +584,9 @@ function ask(title, text, okTxt = 'Aceptar', danger = false, extraHTML = '') {
     $('#mT').textContent = title; $('#mP').textContent = text; $('#mExtra').innerHTML = extraHTML;
     const y = $('#mYes'); y.textContent = okTxt; y.className = 'btn ' + (danger ? 'bad' : 'pri');
     $('#modal').classList.add('show');
-    const inp = $('#mExtra input'); if (inp) setTimeout(() => inp.focus(), 50);
+    const inps = $$('#mExtra input'), inp = inps[0]; if (inp) setTimeout(() => inp.focus(), 50);
     const done = v => { $('#modal').classList.remove('show'); res(v); };
-    y.onclick = () => done(inp ? inp.value : true);
+    y.onclick = () => done(inps.length > 1 ? inps.map(i => i.value) : inp ? inp.value : true);
     $('#mNo').onclick = () => done(false);
   });
 }
@@ -592,12 +627,14 @@ function setHH() { document.documentElement.style.setProperty('--hh', $('header'
 window.addEventListener('resize', setHH);
 function render() {
   $$('nav.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === UI.tab));
-  $('#datebar').style.display = (UI.tab === 'efectivo' || UI.tab === 'premios' || UI.tab === 'depositos') ? '' : 'none';
+  document.body.dataset.tab = UI.tab;
+  $('#datebar').style.display = ['efectivo', 'premios', 'depositos', 'deudas'].includes(UI.tab) ? '' : 'none';
   const v = $('#view');
   requestAnimationFrame(setHH);
   if (UI.tab === 'efectivo') v.innerHTML = vEfectivo(), wEfectivo();
   else if (UI.tab === 'premios') v.innerHTML = vPremios(), wPremios();
   else if (UI.tab === 'depositos') v.innerHTML = vDepositos(), wDepositos();
+  else if (UI.tab === 'deudas') v.innerHTML = vDeudas(), wDeudas();
   else if (UI.tab === 'resumen') v.innerHTML = vResumen(), wResumen();
   else v.innerHTML = vAjustes(), wAjustes();
 }
@@ -903,6 +940,188 @@ function bindPrList() {
 }
 
 /* =========================================================
+   DEUDAS DE CORREDORES
+   Cada movimiento: { id, fecha, cob, ag, corredor, tipo:'deuda'|'pago', motivo, monto, ref }
+   - ag = agencia del cobrador al momento de cargar (el corredor 35 de Ag. 17 VE
+     y el 35 de Ag. 26 son distintos).
+   - Los pagos son solo registro: no se suman a la rendición en Efectivo.
+   ========================================================= */
+function cobOpts() {
+  const o = activos('cobradores').map(c => ({ v: c.id, label: c.nombre + (c.grupo ? ' · ' + c.grupo : ''), ag: c.grupo || '' }));
+  const gr = [...new Set(cfg().cobradores.map(c => c.grupo).filter(Boolean))];
+  gr.forEach(g => o.push({ v: 'agencia:' + g, label: 'Agencia · ' + g, ag: g }));
+  if (!gr.length) o.push({ v: 'agencia:', label: 'Agencia', ag: '' });
+  return o;
+}
+function cobNom(id) { id = String(id || ''); if (id.startsWith('agencia:')) return 'Agencia' + (id.slice(8) ? ' ' + id.slice(8) : ''); return nombre('cobradores', id); }
+const corrKey = x => (x.ag || '') + '|' + String(x.corredor).trim();
+const numSort = (a, b) => (parseInt(a.corredor) || 0) - (parseInt(b.corredor) || 0) || String(a.corredor).localeCompare(String(b.corredor));
+function deudaSaldos(upto) {
+  const m = {};
+  for (const x of DB.deudas) {
+    if (upto && x.fecha > upto) continue;
+    const k = corrKey(x);
+    const o = m[k] || (m[k] = { k, corredor: String(x.corredor).trim(), ag: x.ag || '', cob: x.cob, n: 0, deuda: 0, pagado: 0, saldo: 0, last: '', motivos: {} });
+    if (x.tipo === 'pago') o.pagado += x.monto || 0;
+    else { o.n++; o.deuda += x.monto || 0; o.motivos[x.motivo] = (o.motivos[x.motivo] || 0) + 1; }
+    o.saldo = o.deuda - o.pagado;
+    if (x.fecha >= o.last) { o.last = x.fecha; o.cob = x.cob; }
+  }
+  return Object.values(m);
+}
+const deudaTotal = upto => deudaSaldos(upto).reduce((s, o) => s + Math.max(o.saldo, 0), 0);
+function badgeTipo(x) { return x.tipo === 'pago' ? '<span class="bdg ok">Pago</span>' : `<span class="bdg bad">${esc(x.motivo || 'Deuda')}</span>`; }
+
+function vDeudas() {
+  const D = UI.fecha, tipo = UI.dTipo || 'deuda', opts = cobOpts();
+  if (!opts.find(o => o.v === UI.dCob)) UI.dCob = opts[0] ? opts[0].v : '';
+  const cf = UI.dCobF || '';
+  const form = `<div class="card" style="margin-top:14px">
+    <h3>Registrar · ${dmy(D)}<span class="seg mini" id="dTipo"><button data-t="deuda" class="${tipo === 'deuda' ? 'on' : ''}">Deuda</button><button data-t="pago" class="${tipo === 'pago' ? 'on' : ''}">Pago</button></span></h3>
+    <div class="dform">
+      <label>Cobrador<select id="dCob" class="fi">${opts.map(o => `<option value="${esc(o.v)}" ${o.v === UI.dCob ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}</select></label>
+      <label>Corredor N°<input id="dCorr" class="fi" type="text" inputmode="numeric" autocomplete="off" maxlength="10" value="${esc(UI.dCorr || '')}"></label>
+      ${tipo === 'deuda' ? `<label>Motivo<select id="dMot" class="fi">${cfg().motivos.map(m => `<option ${m === UI.dMot ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select></label>` : ''}
+      <label>Monto<div class="minput"><span>Gs.</span><input id="dMonto" type="text" inputmode="numeric" autocomplete="off" placeholder="0"></div></label>
+      <label class="wide">Referencia / nota<input id="dRef" class="fi" type="text" maxlength="60" autocomplete="off" placeholder="Ej.: reportó Pichi"></label>
+    </div>
+    <div class="dinfo" id="dInfo"></div>
+    <div class="btns"><button class="btn pri" id="dAdd">${tipo === 'deuda' ? '＋ Registrar deuda' : '✔ Registrar pago'}</button></div>
+  </div>`;
+
+  const all = deudaSaldos(D);
+  const sal = all.filter(o => !cf || o.cob === cf);
+  const ab = sal.filter(o => o.saldo > 0).sort((a, b) => b.saldo - a.saldo || numSort(a, b));
+  const porCob = {}; all.filter(o => o.saldo > 0).forEach(o => porCob[o.cob] = (porCob[o.cob] || 0) + o.saldo);
+  const posteriores = DB.deudas.filter(x => x.fecha > D).length;
+
+  const chips = `<div class="chips" id="dChips"><button class="chip ${!cf ? 'on' : ''}" data-dcf=""><small class="cg">Todos</small><b>Ver todos</b><span>${gs(all.reduce((s, o) => s + Math.max(o.saldo, 0), 0))}</span></button>`
+    + opts.map(o => `<button class="chip ${cf === o.v ? 'on' : ''}" data-dcf="${esc(o.v)}"><small class="cg">${esc(o.ag || ' ')}</small><b>${esc(o.v.startsWith('agencia:') ? 'Agencia' : cobNom(o.v))}</b><span>${gs(porCob[o.v] || 0)}</span></button>`).join('') + '</div>';
+
+  const total = ab.reduce((s, o) => s + o.saldo, 0);
+  const hero = `<div class="card"><div class="hero" style="margin:0"><div class="lbl">${cf ? 'Adeudado · ' + esc(cobNom(cf)) : 'Total adeudado'} al ${dmy(D)}</div><div class="big money"><small>Gs.</small>${fmt(total)}</div><div class="words">${ab.length} corredor(es) con saldo${posteriores ? ` · <span class="bdg warn">${posteriores} mov. con fecha posterior no contados</span>` : ''}</div></div>
+    <div class="btns noprint">${cf ? `<button class="btn wa" id="dWa">💬 Enviar deudas de ${esc(cobNom(cf).split(' ')[0])} por WhatsApp</button>` : '<span class="note" style="margin:0">Elegí un cobrador arriba para ver solo sus corredores y enviarle sus deudas por WhatsApp.</span>'}<button class="btn sm" id="dCsv">⬇️ Exportar deudas (CSV)</button></div></div>`;
+
+  const tSal = `<div class="card"><h3>Saldos abiertos <span class="sub">al ${dmy(D)}</span></h3><div class="tscroll"><table class="tbl">
+    <thead><tr><th>Corredor</th><th class="tl">Cobrador</th><th>Deuda</th><th>Pagado</th><th>Saldo</th><th>Último</th><th></th></tr></thead><tbody>
+    ${ab.map(o => `<tr><td><b class="lnk" data-dfil="${esc(o.corredor)}">${esc(o.corredor)}</b>${o.ag ? `<div class="mini">${esc(o.ag)}</div>` : ''}</td><td class="tl">${esc(cobNom(o.cob))}</td><td class="money">${fmt(o.deuda)}</td><td class="money">${fmt(o.pagado)}</td><td class="money neg"><b>${fmt(o.saldo)}</b></td><td>${dmy(o.last).slice(0, 5)}</td><td><button class="btn sm" data-saldar="${esc(o.k)}">Saldar</button></td></tr>`).join('') || '<tr><td colspan="7" class="empty">Nadie debe nada 👍</td></tr>'}
+    </tbody>${ab.length ? `<tfoot><tr><td colspan="4">Total (${ab.length})</td><td class="money">${fmt(total)}</td><td colspan="2"></td></tr></tfoot>` : ''}</table></div></div>`;
+
+  const rk = sal.filter(o => o.n).sort((a, b) => b.n - a.n || b.deuda - a.deuda).slice(0, 15);
+  const tRec = `<div class="card"><h3>Corredores más recurrentes</h3><div class="tscroll"><table class="tbl">
+    <thead><tr><th>#</th><th class="cc">Corredor</th><th class="tl">Cobrador</th><th>Veces</th><th>Total adeudado</th><th class="tl">Motivos</th></tr></thead><tbody>
+    ${rk.map((o, i) => `<tr><td>${i + 1}</td><td class="cc"><b class="lnk" data-dfil="${esc(o.corredor)}">${esc(o.corredor)}</b>${o.ag ? `<div class="mini">${esc(o.ag)}</div>` : ''}</td><td class="tl">${esc(cobNom(o.cob))}</td><td><span class="bdg ${o.n >= 5 ? 'bad' : o.n >= 3 ? 'warn' : ''}">${o.n}</span></td><td class="money">${fmt(o.deuda)}</td><td class="tl mut">${Object.entries(o.motivos).map(([m, n]) => esc(m) + ' ×' + n).join(', ')}</td></tr>`).join('') || '<tr><td colspan="6" class="empty">Sin registros</td></tr>'}
+    </tbody></table></div></div>`;
+
+  const fil = (UI.dFil || '').trim(), ym = D.slice(0, 7);
+  const keysCob = new Set(sal.map(o => o.k));
+  const mov = DB.deudas.filter(x => (!cf || keysCob.has(corrKey(x))) && (fil ? String(x.corredor).trim() === fil : x.fecha.startsWith(ym))).sort((a, b) => b.fecha.localeCompare(a.fecha) || (b.t || 0) - (a.t || 0));
+  const tMov = `<div class="card"><h3>Movimientos ${fil ? 'del corredor ' + esc(fil) : 'de ' + MESES[+ym.slice(5) - 1] + ' ' + ym.slice(0, 4)}
+      <span class="srch"><input id="dFil" type="text" inputmode="numeric" placeholder="Buscar corredor" value="${esc(fil)}" autocomplete="off">${fil ? '<button id="dFilX" title="Quitar filtro">✕</button>' : ''}</span></h3>
+    <div class="tscroll"><table class="tbl"><thead><tr><th>Fecha</th><th class="cc">Corredor</th><th class="tl">Cobrador</th><th class="tl">Tipo</th><th>Monto</th><th class="tl">Referencia</th><th></th></tr></thead><tbody>
+    ${mov.map(x => `<tr><td class="${x.fecha > D ? 'mut' : ''}">${dmy(x.fecha)}</td><td class="cc"><b>${esc(x.corredor)}</b>${x.ag ? `<div class="mini">${esc(x.ag)}</div>` : ''}</td><td class="tl">${esc(cobNom(x.cob))}</td><td class="tl">${badgeTipo(x)}</td><td class="money">${fmt(x.monto)}</td><td class="tl mut">${esc(x.ref || '')}</td><td style="white-space:nowrap"><button class="ibtn" data-dedit="${x.id}" title="Cambiar fecha, monto o referencia">✎</button><button class="ibtn" data-ddel="${x.id}" title="Borrar">🗑</button></td></tr>`).join('') || '<tr><td colspan="7" class="empty">Sin movimientos</td></tr>'}
+    </tbody></table></div></div>`;
+
+  return form + chips + hero + `<div class="grid2">${tSal}${tRec}</div>` + tMov;
+}
+function dInfo() {
+  const box = $('#dInfo'); if (!box) return;
+  const corr = $('#dCorr').value.trim(); const opt = cobOpts().find(o => o.v === $('#dCob').value);
+  if (!corr) { box.innerHTML = ''; return; }
+  const k = (opt ? opt.ag : '') + '|' + corr;
+  const o = deudaSaldos().find(x => x.k === k);
+  if (!o) { box.innerHTML = `Corredor <b>${esc(corr)}</b>${opt && opt.ag ? ' (' + esc(opt.ag) + ')' : ''}: sin deudas registradas.`; return; }
+  box.innerHTML = `Corredor <b>${esc(corr)}</b>${o.ag ? ' (' + esc(o.ag) + ')' : ''}: debió ${o.n} vez/veces · saldo actual <b class="${o.saldo > 0 ? 'neg' : 'pos'}">${gs(o.saldo)}</b>`
+    + ((UI.dTipo || 'deuda') === 'pago' && o.saldo > 0 ? ` <button class="btn sm" id="dTodo">Pagar todo</button>` : '');
+  const t = $('#dTodo'); if (t) t.onclick = () => { $('#dMonto').value = fmt(o.saldo); $('#dMonto').focus(); };
+}
+function wDeudas() {
+  $$('#dTipo button').forEach(b => b.onclick = () => { UI.dTipo = b.dataset.t; UI.dCorr = $('#dCorr').value; render(); setTimeout(() => $('#dCorr').focus(), 0); });
+  $$('#dChips .chip').forEach(c => c.onclick = () => { UI.dCobF = c.dataset.dcf; if (c.dataset.dcf) UI.dCob = c.dataset.dcf; render(); });
+  const corr = $('#dCorr'), monto = $('#dMonto');
+  corr.addEventListener('input', () => { corr.value = corr.value.replace(/[^\dA-Za-z-]/g, ''); dInfo(); });
+  $('#dCob').onchange = () => { UI.dCob = $('#dCob').value; dInfo(); };
+  if ($('#dMot')) $('#dMot').onchange = () => { UI.dMot = $('#dMot').value; };
+  monto.addEventListener('input', () => { const v = digits(monto.value).slice(0, 13); monto.value = v ? fmt(+v) : ''; });
+  const order = [corr, monto, $('#dRef')];
+  order.forEach((el, i) => el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); if (el === corr) monto.focus(); else add(); } }));
+  dInfo();
+  const add = async () => {
+    const tipo = UI.dTipo || 'deuda', c = corr.value.trim(), m = +digits(monto.value);
+    if (!c) { corr.focus(); return toast('Escribí el número de corredor'); }
+    if (!m) { monto.focus(); return toast('Escribí el monto'); }
+    const opt = cobOpts().find(o => o.v === $('#dCob').value) || { v: '', ag: '' };
+    if (tipo === 'pago') {
+      const o = deudaSaldos().find(x => x.k === opt.ag + '|' + c);
+      const s = o ? o.saldo : 0;
+      if (s <= 0 && !await ask('Sin saldo pendiente', `El corredor ${c}${opt.ag ? ' (' + opt.ag + ')' : ''} no tiene deudas pendientes. ¿Registrar el pago igual?`, 'Registrar igual')) return;
+      if (s > 0 && m > s && !await ask('Pago mayor al saldo', `El corredor ${c} debe ${gs(s)} y el pago es de ${gs(m)}. ¿Registrar igual?`, 'Registrar igual')) return;
+    }
+    DB.deudas.push({ id: uid(), fecha: UI.fecha, cob: opt.v, ag: opt.ag, corredor: c, tipo, motivo: tipo === 'pago' ? 'Pago' : ($('#dMot') ? $('#dMot').value : 'Deuda'), monto: m, ref: $('#dRef').value.trim(), t: Date.now() });
+    UI.dCob = opt.v; UI.dCorr = '';
+    save(); toast(tipo === 'pago' ? `Pago de ${gs(m)} registrado (corredor ${c})` : `Deuda de ${gs(m)} registrada (corredor ${c})`);
+    render(); setTimeout(() => $('#dCorr').focus(), 0);
+  };
+  $('#dAdd').onclick = add;
+  $$('[data-saldar]').forEach(b => b.onclick = async () => {
+    const o = deudaSaldos().find(x => x.k === b.dataset.saldar); if (!o || o.saldo <= 0) return toast('Ese corredor ya no tiene saldo');
+    if (!await ask('Saldar deuda', `¿Registrar pago de ${gs(o.saldo)} del corredor ${o.corredor}${o.ag ? ' (' + o.ag + ')' : ''} con fecha ${dmy(UI.fecha)}?`, 'Saldar')) return;
+    DB.deudas.push({ id: uid(), fecha: UI.fecha, cob: o.cob, ag: o.ag, corredor: o.corredor, tipo: 'pago', motivo: 'Pago', monto: o.saldo, ref: 'Saldado', t: Date.now() });
+    save(); render(); toast(`Corredor ${o.corredor} saldado`);
+  });
+  $$('[data-dfil]').forEach(b => b.onclick = () => { UI.dFil = b.dataset.dfil; render(); const f = $('#dFil'); f && f.scrollIntoView({ block: 'center' }); });
+  const f = $('#dFil');
+  f.addEventListener('keydown', e => { if (e.key === 'Enter') { UI.dFil = f.value.trim(); render(); setTimeout(() => { const g = $('#dFil'); g.focus(); g.setSelectionRange(g.value.length, g.value.length); }, 0); } });
+  f.addEventListener('blur', () => { if (f.value.trim() !== (UI.dFil || '')) { UI.dFil = f.value.trim(); render(); } });
+  if ($('#dFilX')) $('#dFilX').onclick = () => { UI.dFil = ''; render(); };
+  $$('[data-ddel]').forEach(b => b.onclick = () => {
+    const i = DB.deudas.findIndex(x => x.id === b.dataset.ddel); if (i < 0) return;
+    const [x] = DB.deudas.splice(i, 1); DB.deudasDel.push(x.id); save(); render();
+    toast(`Movimiento de ${gs(x.monto)} borrado`, 'Deshacer', () => { DB.deudasDel = DB.deudasDel.filter(id => id !== x.id); DB.deudas.splice(i, 0, x); save(); render(); });
+  });
+  $$('[data-dedit]').forEach(b => b.onclick = async () => {
+    const x = DB.deudas.find(y => y.id === b.dataset.dedit); if (!x) return;
+    const r = await ask('Editar movimiento', `Corredor ${x.corredor} · ${x.tipo === 'pago' ? 'Pago' : x.motivo}`, 'Guardar', false,
+      `<label class="mlbl">Fecha (dd/mm/aaaa)<input type="text" inputmode="numeric" maxlength="10" value="${dmy(x.fecha)}" oninput="this.value=maskDate(this.value)"></label>
+       <label class="mlbl">Monto<input type="text" inputmode="numeric" value="${fmt(x.monto)}" oninput="const v=digits(this.value).slice(0,13);this.value=v?fmt(+v):''"></label>
+       <label class="mlbl">Referencia<input type="text" maxlength="60" value="${esc(x.ref || '')}"></label>`);
+    if (!r) return;
+    const nf = dmyToISO(r[0]), nm = +digits(r[1]);
+    if (!nf) return toast('Fecha no válida');
+    if (!nm) return toast('Monto no válido');
+    x.fecha = nf; x.monto = nm; x.ref = r[2].trim(); save(); render(); toast('Movimiento actualizado');
+  });
+  $('#dCsv').onclick = () => {
+    const rows = [['Fecha', 'Agencia', 'Corredor', 'Cobrador', 'Tipo', 'Motivo', 'Monto', 'Referencia']].concat(
+      [...DB.deudas].sort((a, b) => a.fecha.localeCompare(b.fecha)).map(x => [dmy(x.fecha), x.ag || '', x.corredor, cobNom(x.cob), x.tipo === 'pago' ? 'Pago' : 'Deuda', x.tipo === 'pago' ? '' : x.motivo, x.monto, x.ref || '']));
+    const csv = '﻿' + rows.map(r => r.map(v => typeof v === 'number' ? v : '"' + String(v).replace(/"/g, '""') + '"').join(';')).join('\r\n');
+    download(csv, `deudas-corredores_${todayISO()}.csv`, 'text/csv;charset=utf-8');
+  };
+  if ($('#dWa')) $('#dWa').onclick = () => { const t = textoDeudas(UI.dCobF); if (t) shareText(t); };
+}
+function textoDeudas(cf) {
+  const ab = deudaSaldos(UI.fecha).filter(o => (!cf || o.cob === cf) && o.saldo > 0).sort(numSort);
+  if (!ab.length) { toast(cf ? 'Este cobrador no tiene deudas pendientes' : 'No hay deudas pendientes'); return ''; }
+  const L = [`*Deudas pendientes${cf ? ' – ' + cobNom(cf) : ''}*`, `al ${dmy(UI.fecha)}`, ''];
+  for (const o of ab) {
+    const ult = DB.deudas.filter(x => corrKey(x) === o.k && x.tipo !== 'pago').sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
+    L.push(`• Corr. *${o.corredor}*${!cf && o.ag ? ' (' + o.ag + ')' : ''}: ${gs(o.saldo)}` + (o.pagado ? ` (pagó ${fmt(o.pagado)} de ${fmt(o.deuda)})` : '') + ` – ${Object.keys(o.motivos).join(', ')}` + (ult && ult.ref ? ` – ${ult.ref}` : ''));
+  }
+  L.push('', `*Total: ${gs(ab.reduce((s, o) => s + o.saldo, 0))}*`);
+  return L.join('\n');
+}
+function mergeDeudas(dst, src) {
+  if (!src) return 0;
+  const del = new Set([...(dst.deudasDel || []), ...(src.deudasDel || [])]);
+  dst.deudasDel = [...del];
+  dst.deudas = (dst.deudas || []).filter(x => !del.has(x.id));
+  const have = new Set(dst.deudas.map(x => x.id)); let n = 0;
+  (src.deudas || []).forEach(x => { if (!have.has(x.id) && !del.has(x.id)) { dst.deudas.push(x); n++; } });
+  ((src.config || {}).motivos || []).forEach(m => { if (!dst.config.motivos.includes(m)) dst.config.motivos.push(m); });
+  return n;
+}
+
+/* =========================================================
    RESUMEN GENERAL
    ========================================================= */
 function periodo() {
@@ -932,7 +1151,18 @@ function agregar(a, b) {
     const mk = k.slice(0, 7); const M = R.meses[mk] = R.meses[mk] || { f: mk, ef: 0, tr: 0, pr: 0, dep: 0, n: 0, dias: 0 };
     M.tr += t; M.ef += e; M.pr += p; M.dep += dp; M.n += n; M.dias++;
   });
+  R.dN = 0; R.dM = 0; R.pN = 0; R.pM = 0;
+  DB.deudas.forEach(x => { if (x.fecha >= a && x.fecha <= b) { if (x.tipo === 'pago') { R.pN++; R.pM += x.monto; } else { R.dN++; R.dM += x.monto; } } });
+  R.dSal = deudaTotal(b < todayISO() ? b : null);
   return R;
+}
+function cardDeudasRes(R, P) {
+  if (!DB.deudas.length) return '';
+  const hasta = P.b < todayISO() ? P.b : todayISO();
+  return `<div class="card"><h3>📒 Deudas de corredores <span class="sub">tocá para ver el detalle</span></h3>
+    <div class="row clk" data-gotab="deudas"><div class="l"><b>Deudas nuevas</b><small>${R.dN} registro(s) en el período</small></div><div class="r money neg">${gs(R.dM)}</div></div>
+    <div class="row clk" data-gotab="deudas"><div class="l"><b>Pagos recibidos</b><small>${R.pN} pago(s) en el período</small></div><div class="r money pos">${gs(R.pM)}</div></div>
+    <div class="row total clk" data-gotab="deudas"><div class="l"><b>Saldo pendiente</b><small>al ${dmy(hasta)}</small></div><div class="r money">${gs(R.dSal)}</div></div></div>`;
 }
 function vResumen() {
   const P = periodo(), R = agregar(P.a, P.b);
@@ -950,7 +1180,7 @@ function vResumen() {
     <div class="kpi kpr"><div class="lbl">Premios</div><div class="v money">${gs(R.pr)}</div><div class="s">${R.prN} premio(s)${nd > 1 ? ' · prom. ' + gs(R.pr / nd) : ''}</div></div>
     <div class="kpi"><div class="lbl">Depósitos</div><div class="v money">${gs(R.dep)}</div><div class="s">${Object.keys(R.deps).length} concepto(s)</div></div>
     <div class="kpi"><div class="lbl">Diferencia</div><div class="v money ${dif > 0 ? 'pos' : dif < 0 ? 'neg' : ''}">${gs(dif)}</div><div class="s">Depósitos − efectivo</div></div></div>`;
-  if (!nd) return `<div class="seg" id="seg">${segs}</div>${nav}${rango}${kpis}<div class="card empty">No hay movimientos cargados en este período.</div>`;
+  if (!nd) return `<div class="seg" id="seg">${segs}</div>${nav}${rango}${kpis}<div class="card empty">No hay movimientos cargados en este período.</div>${cardDeudasRes(R, P)}`;
 
   const lista = (obj, list, tot, cls, cnt, subFn) => {
     const ids = cfg()[list].map(x => x.id).filter(id => obj[id] !== undefined).concat(Object.keys(obj).filter(id => !cfg()[list].find(x => x.id === id)));
@@ -972,6 +1202,7 @@ function vResumen() {
   return `<div class="seg" id="seg">${segs}</div>${nav}${rango}${kpis}
     <div class="card"><h3>💵 Rendido por agencia <span class="sub">efectivo + transferencias</span></h3>${lista(R.rend, 'agencias', R.ef + R.tr, '', null, id => desglose(R.agB[id] || 0, R.agM[id] || 0, R.agTr[id] || 0))}</div>
     <div class="card"><h3>🏆 Premios por cobrador</h3>${lista(R.cobs, 'cobradores', R.pr, 'g', R.cobsN)}</div>
+    ${cardDeudasRes(R, P)}
     ${Object.keys(R.deps).length ? `<div class="card"><h3>🏦 Depósitos por concepto</h3>${lista(R.deps, 'depositos', R.dep, '')}</div>` : ''}
     ${tabla}
     <div class="btns noprint" style="margin-bottom:10px"><button class="btn pri" id="rWa">💬 Enviar por WhatsApp</button><button class="btn" id="rCsv">⬇️ Exportar Excel (CSV)</button><button class="btn" id="rPrint">🖨️ Imprimir / PDF</button></div>`;
@@ -986,6 +1217,7 @@ function wResumen() {
     bindPicker($('#rDc'), $('#rDp'), () => UI.rDesde, f => { UI.rDesde = f; saveUI(); render(); });
     bindPicker($('#rHc'), $('#rHp'), () => UI.rHasta, f => { UI.rHasta = f; saveUI(); render(); });
   }
+  $$('[data-gotab]').forEach(r => r.onclick = () => { UI.tab = r.dataset.gotab; saveUI(); render(); scrollTo(0, 0); });
   $$('[data-dia]').forEach(tr => tr.onclick = () => { UI.per = 'dia'; UI.ref = tr.dataset.dia; saveUI(); render(); scrollTo(0, 0); });
   $$('[data-mes]').forEach(tr => tr.onclick = () => { UI.per = 'mes'; UI.ref = tr.dataset.mes + '-01'; saveUI(); render(); scrollTo(0, 0); });
   if ($('#rWa')) {
@@ -1004,6 +1236,7 @@ function textoResumen() {
   L.push('*🏆 Premios por cobrador*');
   Object.keys(R.cobs).forEach(id => L.push(`• ${nomG('cobradores', id)}: ${gs(R.cobs[id])} (${R.cobsN[id]})`));
   L.push(`*Total premios: ${gs(R.pr)}*`);
+  if (DB.deudas.length) L.push('', '*📒 Deudas de corredores*', `Nuevas: ${gs(R.dM)} (${R.dN})`, `Pagos: ${gs(R.pM)} (${R.pN})`, `*Saldo pendiente: ${gs(R.dSal)}*`);
   return L.join('\n');
 }
 function textoDia() {
@@ -1034,7 +1267,7 @@ function shareText(t) {
   if (navigator.share && /Android|iPhone|iPad/i.test(navigator.userAgent)) navigator.share({ text: t }).catch(() => {});
   else open('https://wa.me/?text=' + encodeURIComponent(t), '_blank');
 }
-$('#btnShare').onclick = () => shareText(UI.tab === 'resumen' ? textoResumen() : textoDia());
+$('#btnShare').onclick = () => { const t = UI.tab === 'resumen' ? textoResumen() : UI.tab === 'deudas' ? textoDeudas(UI.dCobF) : textoDia(); if (t) shareText(t); };
 function exportCSV() {
   const P = periodo();
   const ags = cfg().agencias, cobs = cfg().cobradores, deps = cfg().depositos;
@@ -1065,6 +1298,8 @@ function vAjustes() {
     ${c[k].map(x => `<div class="set ${x.activo ? '' : 'off'}"><input type="text" data-list="${k}" data-id="${x.id}" value="${esc(x.nombre)}" maxlength="40">${k === 'depositos' ? '<span></span>' : `<input type="text" data-grp="${k}" data-id="${x.id}" value="${esc(x.grupo || '')}" maxlength="20" placeholder="Agencia">`}<label class="sw"><input type="checkbox" data-sw="${k}" data-id="${x.id}" ${x.activo ? 'checked' : ''}><i></i></label></div>`).join('')}
     <div class="btns"><button class="btn sm" data-add="${k}">＋ ${nuevo}</button></div>
     ${k !== 'depositos' ? '<p class="note">La agencia (ej.: Ag. 17 VE, Ag. 26) agrupa y subtotaliza en los totales y el resumen.</p>' : ''}<p class="note">Desactivar oculta el elemento sin borrar los datos ya cargados; siguen apareciendo en el resumen.</p></div>`).join('')}
+  <div class="card"><h3>📒 Motivos de deuda</h3><div class="mchips">${c.motivos.map((m, i) => `<span class="mchip">${esc(m)}<button data-mdel="${i}" aria-label="Quitar">✕</button></span>`).join('')}</div>
+    <div class="btns"><button class="btn sm" id="mAdd">＋ Nuevo motivo</button></div><p class="note">Quitar un motivo no cambia las deudas ya cargadas con ese motivo.</p></div>
   <div class="card"><h3>🔒 Seguridad</h3>
     <div class="row"><div class="l"><b>PIN de acceso</b><small>${c.pin ? 'Activado · se pide al abrir la app' : 'Desactivado'}</small></div><div class="btns" style="margin:0">${c.pin ? '<button class="btn sm" id="pinChg">Cambiar</button><button class="btn sm bad" id="pinOff">Quitar</button>' : '<button class="btn sm pri" id="pinOn">Activar</button>'}</div></div></div>
   <div class="card"><h3>💾 Respaldo</h3>
@@ -1101,6 +1336,8 @@ function wAjustes() {
   if ($('#pinOff')) $('#pinOff').onclick = async () => { if (await ask('Quitar PIN', '¿Desactivar el PIN de acceso?', 'Quitar', true)) { cfg().pin = ''; save(); render(); } };
   $('#bkExp').onclick = () => { cfg().ultimoBackup = Date.now(); dirty = true; saveNow(); download(JSON.stringify({ app: APP_ID, ver: APP_VER, fecha: new Date().toISOString(), data: DB }, null, 1), `respaldo_control-diario_${todayISO()}.json`, 'application/json'); render(); toast('Respaldo descargado'); };
   $('#bkImp').onclick = () => $('#fileIn').click();
+  $$('[data-mdel]').forEach(b => b.onclick = () => { cfg().motivos.splice(+b.dataset.mdel, 1); save(); render(); });
+  $('#mAdd').onclick = async () => { const n = await ask('Nuevo motivo', 'Escribí el motivo:', 'Agregar', false, '<input type="text" maxlength="30" style="letter-spacing:0;text-align:left;font-size:16px">'); if (!n || !n.trim()) return; if (!cfg().motivos.includes(n.trim())) cfg().motivos.push(n.trim()); save(); render(); };
   pintarSnaps();
 }
 async function pintarSnaps() {
@@ -1130,7 +1367,8 @@ $('#fileIn').onchange = async e => {
     let added = 0;
     for (const k of Object.keys(inc.dias)) if (!DB.dias[k] || !hasData(DB.dias[k])) { DB.dias[k] = inc.dias[k]; added++; }
     for (const list of ['agencias', 'cobradores', 'depositos']) (inc.config[list] || []).forEach(x => { if (!cfg()[list].find(y => y.id === x.id)) cfg()[list].push(x); });
-    DB = migrate(DB); dirty = true; saveNow(); render(); toast(`Restaurado: ${added} día(s) agregados`);
+    const addD = mergeDeudas(DB, inc);
+    DB = migrate(DB); dirty = true; saveNow(); render(); toast(`Restaurado: ${added} día(s)${addD ? ' y ' + addD + ' movimiento(s) de deudas' : ''} agregados`);
   } catch (er) { toast('⚠️ El archivo no es un respaldo válido'); }
 };
 
