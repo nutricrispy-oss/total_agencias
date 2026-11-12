@@ -267,26 +267,53 @@ body[data-tab="deudas"] .wrap{max-width:1180px}
 .ccob.dif{background:var(--warnSoft);color:var(--warn)}
 #printArea{display:none}
 @media print{
-  @page{size:A4;margin:14mm}
+  @page{size:A4;margin:10mm}
   body.pc > *:not(#printArea){display:none!important}
   body.pc{padding:0;background:#fff;color:#111}
   body.pc #printArea{display:block;font:11pt/1.35 system-ui,Arial,sans-serif;color:#111}
-  #printArea .ph{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #0f766e;padding-bottom:6px;margin-bottom:10px}
-  #printArea h1{margin:0;font-size:20pt;color:#0f766e}
-  #printArea .pf{text-align:right;font-size:9pt;color:#555} #printArea .pf b{font-size:12pt;color:#111}
-  #printArea h2{font-size:10.5pt;text-transform:uppercase;letter-spacing:.5px;color:#0f766e;margin:14px 0 4px;border-bottom:1px solid #ccc;padding-bottom:2px}
-  #printArea table{width:100%;border-collapse:collapse;margin-bottom:4px}
-  #printArea th{font-size:8.5pt;color:#555;text-align:right;padding:3px 6px;border-bottom:1px solid #ccc}
-  #printArea td{text-align:right;padding:3px 6px;border-bottom:1px solid #eee}
-  #printArea th:first-child,#printArea td:first-child{text-align:left}
-  #printArea tr.sep td{border-top:1px solid #999}
-  #printArea td.mk{background:#fef3c7;color:#b45309;font-weight:700}
-  #printArea tfoot td{font-weight:700;background:#f1f5f4}
-  #printArea tr.big td{font-size:12.5pt;font-weight:800;background:#e0f2ef}
-  #printArea .obs{white-space:pre-wrap;border:1px solid #ccc;border-radius:6px;padding:6px 8px}
-  #printArea .firmas{display:flex;justify-content:space-between;margin-top:46px}
-  #printArea .firmas div{width:40%;border-top:1px solid #555;text-align:center;padding-top:4px;font-size:9pt;color:#555}
+  body.pr-res{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
+/* Hojas imprimibles (también se usan para medir en pantalla) */
+#printArea .ph{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #0f766e;padding-bottom:6px;margin-bottom:10px}
+#printArea h1{margin:0;font-size:20pt;color:#0f766e}
+#printArea .pf{text-align:right;font-size:9pt;color:#555} #printArea .pf b{font-size:12pt;color:#111}
+#printArea h2{font-size:10.5pt;text-transform:uppercase;letter-spacing:.5px;color:#0f766e;margin:14px 0 4px;border-bottom:1px solid #ccc;padding-bottom:2px}
+#printArea table{width:100%;border-collapse:collapse;margin-bottom:4px}
+#printArea th{font-size:8.5pt;color:#555;text-align:right;padding:3px 6px;border-bottom:1px solid #ccc}
+#printArea td{text-align:right;padding:3px 6px;border-bottom:1px solid #eee}
+#printArea th:first-child,#printArea td:first-child{text-align:left}
+#printArea tr.sep td{border-top:1px solid #999}
+#printArea td.mk{background:#fef3c7;color:#b45309;font-weight:700}
+#printArea tfoot td{font-weight:700;background:#f1f5f4}
+#printArea tr.big td{font-size:12.5pt;font-weight:800;background:#e0f2ef}
+#printArea .obs{white-space:pre-wrap;border:1px solid #ccc;border-radius:6px;padding:6px 8px}
+#printArea .firmas{display:flex;justify-content:space-between;margin-top:46px}
+#printArea .firmas div{width:40%;border-top:1px solid #555;text-align:center;padding-top:4px;font-size:9pt;color:#555}
+#printArea .rs{font:8.4pt/1.28 system-ui,"Segoe UI",Arial,sans-serif;color:#14211e;width:190mm}
+#printArea .rs .ph{border-bottom:2.5px solid #0f766e;padding-bottom:5px;margin-bottom:7px}
+#printArea .rs h1{font-size:17pt;letter-spacing:-.2px}
+#printArea .rs .org{font-size:8pt;color:#5d706b;margin-top:1px}
+#printArea .rs .pf{font-size:7.6pt;line-height:1.35} #printArea .rs .pf b{font-size:11pt}
+#printArea .rs .kp{display:grid;grid-template-columns:1.25fr repeat(5,minmax(0,1fr));gap:5px;margin-bottom:6px}
+#printArea .rs .k{border:1px solid #d5e2de;border-radius:6px;padding:5px 7px;background:#f6faf9}
+#printArea .rs .k span{display:block;font-size:6.8pt;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#5d706b}
+#printArea .rs .k b{display:block;font-size:9.6pt;font-variant-numeric:tabular-nums;margin-top:1px;white-space:nowrap}
+#printArea .rs .k small{display:block;font-size:6.6pt;color:#5d706b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#printArea .rs .k.pri{background:#0f766e;border-color:#0f766e;color:#fff} #printArea .rs .k.pri span,#printArea .rs .k.pri small{color:#d1fae5}
+#printArea .rs .k.gd b{color:#a16207} #printArea .rs .k.bd b{color:#b91c1c}
+#printArea .rs .cols{display:grid;grid-template-columns:1.25fr 1fr;gap:10px}
+#printArea .rs h2{font-size:8pt;margin:7px 0 2px;padding-bottom:1px;border-bottom:1px solid #0f766e;letter-spacing:.6px}
+#printArea .rs table{margin:0;font-variant-numeric:tabular-nums}
+#printArea .rs th{font-size:6.8pt;text-transform:uppercase;letter-spacing:.3px;padding:2px 4px;background:#eef4f2;border-bottom:1px solid #c9d8d3}
+#printArea .rs td{padding:1.6px 4px;border-bottom:1px solid #edf1f0;white-space:nowrap}
+#printArea .rs tr.st td{background:#f3f7f6;font-weight:700;color:#0f766e}
+#printArea .rs tr.tt td,#printArea .rs tfoot td{font-weight:800;background:#e0f2ef;border-top:1px solid #0f766e;border-bottom:1px solid #0f766e}
+#printArea .rs td.ng{color:#b91c1c}
+#printArea .rs td.sub{white-space:normal;font-size:7pt;color:#5d706b;text-align:left}
+#printArea .rs table.dnm th,#printArea .rs table.dnm td{text-align:right;font-size:7.2pt}
+#printArea .rs table.det td{font-size:7.6pt}
+#printArea .rs p.lst{margin:2px 0;font-size:7.4pt;line-height:1.4;white-space:normal}
+#printArea .rs .firmas{margin-top:26px} #printArea .rs .firmas div{font-size:7.5pt}
 </style>
 </head>
 <body>
@@ -339,7 +366,7 @@ body[data-tab="deudas"] .wrap{max-width:1180px}
    identificador, para no chocar con las demás apps del repositorio.
    ========================================================= */
 const APP_ID = 'crz-control-diario';
-const APP_VER = '1.7.0';
+const APP_VER = '1.8.0';
 const K_DATA = APP_ID + ':data';
 const K_UI = APP_ID + ':ui';
 const K_SNAP = APP_ID + ':snapshot';
@@ -1330,6 +1357,100 @@ async function pdfCierre(f) {
 }
 
 /* =========================================================
+   HOJA DE RESUMEN IMPRIMIBLE (una sola hoja A4)
+   ========================================================= */
+function imprimirResumen() {
+  const P = periodo(), R = agregar(P.a, P.b), nd = R.dias.length;
+  const f0 = n => fmt(n || 0);
+  const grupos = (list, ids) => { const o = [], m = {}; ids.forEach(id => { const g = grupo(list, id) || 'Sin agencia'; if (!m[g]) { m[g] = []; o.push(g); } m[g].push(id); }); return o.map(g => [g, m[g]]); };
+  const ordenar = (list, obj) => cfg()[list].map(x => x.id).filter(id => obj[id] !== undefined).concat(Object.keys(obj).filter(id => !cfg()[list].find(x => x.id === id)));
+
+  // Rendido por agencia
+  const agIds = ordenar('agencias', R.rend);
+  let tRend = '';
+  grupos('agencias', agIds).forEach(([g, ids]) => {
+    const s = k => ids.reduce((a, id) => a + ((k === 'b' ? R.agB : k === 'm' ? R.agM : k === 't' ? R.agTr : R.rend)[id] || 0), 0);
+    tRend += ids.map(id => `<tr><td>${esc(nombre('agencias', id))}</td><td>${f0(R.agB[id])}</td><td>${f0(R.agM[id])}</td><td>${f0(R.agTr[id])}</td><td><b>${f0(R.rend[id])}</b></td></tr>`).join('');
+    if (g !== 'Sin agencia' && ids.length > 1) tRend += `<tr class="st"><td>Subtotal ${esc(g)}</td><td>${f0(s('b'))}</td><td>${f0(s('m'))}</td><td>${f0(s('t'))}</td><td>${f0(s('r'))}</td></tr>`;
+  });
+  tRend += `<tr class="tt"><td>TOTAL</td><td>${f0(R.b)}</td><td>${f0(R.m)}</td><td>${f0(R.tr)}</td><td>${f0(R.ef + R.tr)}</td></tr>`;
+
+  // Premios por cobrador
+  const cobIds = ordenar('cobradores', R.cobs);
+  let tPr = '';
+  grupos('cobradores', cobIds).forEach(([g, ids]) => {
+    tPr += ids.map(id => `<tr><td>${esc(nombre('cobradores', id))}</td><td>${R.cobsN[id] || 0}</td><td><b>${f0(R.cobs[id])}</b></td></tr>`).join('');
+    if (g !== 'Sin agencia' && ids.length > 1) tPr += `<tr class="st"><td>Subtotal ${esc(g)}</td><td>${ids.reduce((a, id) => a + (R.cobsN[id] || 0), 0)}</td><td>${f0(ids.reduce((a, id) => a + (R.cobs[id] || 0), 0))}</td></tr>`;
+  });
+  tPr += `<tr class="tt"><td>TOTAL</td><td>${R.prN}</td><td>${f0(R.pr)}</td></tr>`;
+
+  // Depósitos
+  const depIds = ordenar('depositos', R.deps);
+  const tDep = depIds.map(id => `<tr><td>${esc(nombre('depositos', id))}</td><td>${f0(R.deps[id])}</td></tr>`).join('') + `<tr class="tt"><td>TOTAL</td><td>${f0(R.dep)}</td></tr>`
+    + `<tr><td>Menos efectivo</td><td>${f0(-R.ef)}</td></tr><tr class="tt"><td>Diferencia</td><td class="${R.dep - R.ef < 0 ? 'ng' : ''}">${f0(R.dep - R.ef)}</td></tr>`;
+
+  // Deudas + caja paralela
+  const hasta = P.b < todayISO() ? P.b : todayISO();
+  let pagC = 0, pagS = 0;
+  Object.keys(DB.dias).filter(k => k >= P.a && k <= P.b).forEach(k => pagC += cierreCalc(DB.dias[k]).t);
+  DB.deudas.forEach(x => { if (x.tipo === 'pago' && x.fecha >= P.a && x.fecha <= P.b) pagS += x.monto; });
+  const sal = deudaSaldos(hasta).filter(o => o.saldo > 0).sort((a, b) => b.saldo - a.saldo).slice(0, 6);
+  const tDeu = `<tr><td>Deudas nuevas (${R.dN})</td><td>${f0(R.dM)}</td></tr><tr><td>Pagos recibidos (${R.pN})</td><td>${f0(R.pM)}</td></tr><tr class="tt"><td>Saldo pendiente al ${dmy(hasta).slice(0, 5)}</td><td>${f0(R.dSal)}</td></tr>`
+    + (pagC || pagS ? `<tr><td>Caja paralela: contado</td><td>${f0(pagC)}</td></tr><tr><td>Diferencia vs. pagos</td><td class="${pagC - pagS < 0 ? 'ng' : ''}">${f0(pagC - pagS)}</td></tr>` : '')
+    + (sal.length ? `<tr><td colspan="2" class="sub">Mayores saldos: ${sal.map(o => `${esc(o.corredor)}${o.ag ? ' (' + esc(o.ag.replace('Ag. ', '')) + ')' : ''} ${f0(o.saldo)}`).join(' · ')}</td></tr>` : '');
+
+  // Bloque inferior: día → conteo por denominación; período → detalle por día/mes
+  let inferior = '';
+  if (UI.per === 'dia') {
+    const d = getDay(P.a), den = BILLETES.concat(MONEDAS);
+    const q = v => Object.keys(d.ef || {}).reduce((s, id) => s + ((d.ef[id] || {})[v] || 0), 0);
+    inferior = `<h2>Conteo de efectivo por denominación (todas las agencias)</h2><table class="dnm"><thead><tr><th></th>${den.map(v => `<th>${fmt(v)}</th>`).join('')}<th>Total</th></tr></thead><tbody>
+      <tr><td>Cantidad</td>${den.map(v => `<td>${q(v)}</td>`).join('')}<td></td></tr>
+      <tr><td>Importe</td>${den.map(v => `<td>${f0(q(v) * v)}</td>`).join('')}<td><b>${f0(R.ef)}</b></td></tr></tbody></table>`;
+    const prs = Object.keys(d.pr || {}).filter(id => (d.pr[id] || []).length);
+    const trs = Object.keys(d.tr || {}).filter(id => (d.tr[id] || []).length);
+    if (trs.length) inferior += `<h2>Transferencias del día</h2><p class="lst">${trs.map(id => `<b>${esc(nombre('agencias', id))}:</b> ${d.tr[id].map(x => f0(x.monto) + (x.nota ? ' (' + esc(x.nota) + ')' : '')).join(', ')}`).join(' &nbsp;·&nbsp; ')}</p>`;
+    if (prs.length) inferior += `<h2>Premios del día por cobrador (en orden de carga)</h2><p class="lst">${prs.map(id => `<b>${esc(nombre('cobradores', id))} (${d.pr[id].length}):</b> ${d.pr[id].map(x => f0(x.monto)).join(' · ')}`).join('<br>')}</p>`;
+  } else {
+    const porMes = UI.per === 'total' && Object.keys(R.meses).length > 1;
+    const rows = porMes ? Object.values(R.meses) : R.dias;
+    const pagoDe = k => DB.deudas.filter(x => x.tipo === 'pago' && (porMes ? x.fecha.startsWith(k) : x.fecha === k)).reduce((s, x) => s + x.monto, 0);
+    inferior = `<h2>Detalle por ${porMes ? 'mes' : 'día'}</h2><table class="det"><thead><tr><th>${porMes ? 'Mes' : 'Fecha'}</th><th>Efectivo</th><th>Transf.</th><th>Total rendido</th><th>Premios</th><th>Cant.</th><th>Depósitos</th><th>Dif. dep.</th><th>Pagos deudas</th></tr></thead><tbody>
+      ${rows.map(r => `<tr><td>${porMes ? MESES[+r.f.slice(5) - 1].slice(0, 3) + ' ' + r.f.slice(0, 4) : DIAS3[pISO(r.f).getDay()] + ' ' + dmy(r.f).slice(0, 5)}</td><td>${f0(r.ef)}</td><td>${f0(r.tr)}</td><td><b>${f0(r.ef + r.tr)}</b></td><td>${f0(r.pr)}</td><td>${r.n}</td><td>${f0(r.dep)}</td><td class="${r.dep - r.ef < 0 ? 'ng' : ''}">${f0(r.dep - r.ef)}</td><td>${f0(pagoDe(r.f))}</td></tr>`).join('')}
+      </tbody><tfoot><tr><td>Total (${rows.length})</td><td>${f0(R.ef)}</td><td>${f0(R.tr)}</td><td>${f0(R.ef + R.tr)}</td><td>${f0(R.pr)}</td><td>${R.prN}</td><td>${f0(R.dep)}</td><td>${f0(R.dep - R.ef)}</td><td>${f0(R.pM)}</td></tr></tfoot></table>`;
+  }
+
+  const kpi = (l, v, s, c = '') => `<div class="k ${c}"><span>${l}</span><b>${v}</b>${s ? `<small>${s}</small>` : ''}</div>`;
+  const dif = R.dep - R.ef;
+  const html = `<div class="rs">
+    <div class="ph"><div><h1>Resumen ${UI.per === 'dia' ? 'diario' : UI.per === 'semana' ? 'semanal' : UI.per === 'mes' ? 'mensual' : UI.per === 'total' ? 'general' : 'del período'}</h1><div class="org">CRz Control Diario · Ag. 17 VE · Ag. 26</div></div>
+      <div class="pf"><b>${esc(P.lbl)}</b><div>${UI.per === 'dia' ? '' : esc(P.sub) + ' · '}${nd} día(s) con movimientos</div><div>Emitido: ${new Date().toLocaleString('es-PY')}</div></div></div>
+    <div class="kp">${kpi('Total rendido', 'Gs. ' + f0(R.ef + R.tr), nd > 1 ? 'Prom. ' + f0((R.ef + R.tr) / nd) : 'Efectivo + transf.', 'pri')}${kpi('Efectivo', f0(R.ef), 'Monedas ' + f0(R.m))}${kpi('Transferencias', f0(R.tr))}${kpi('Premios', f0(R.pr), R.prN + ' premio(s)', 'gd')}${kpi('Depósitos', f0(R.dep))}${kpi('Diferencia', f0(dif), 'Depósitos − efectivo', dif < 0 ? 'bd' : '')}</div>
+    <div class="cols">
+      <div><h2>Rendido por agencia y cobrador</h2><table><thead><tr><th>Cobrador</th><th>Billetes</th><th>Monedas</th><th>Transf.</th><th>Total</th></tr></thead><tbody>${agIds.length ? tRend : '<tr><td colspan="5">Sin rendiciones</td></tr>'}</tbody></table>
+        <h2>Depósitos</h2><table><tbody>${tDep}</tbody></table></div>
+      <div><h2>Premios por cobrador</h2><table><thead><tr><th>Cobrador</th><th>Cant.</th><th>Monto</th></tr></thead><tbody>${cobIds.length ? tPr : '<tr><td colspan="3">Sin premios</td></tr>'}</tbody></table>
+        <h2>Deudas de corredores</h2><table><tbody>${tDeu}</tbody></table></div>
+    </div>
+    ${inferior}
+    <div class="firmas"><div>Elaborado por</div><div>Revisado por</div></div>
+  </div>`;
+
+  const pa = $('#printArea');
+  pa.innerHTML = html;
+  // Medir y achicar para que entre en UNA hoja A4 (190 × 277 mm útiles)
+  pa.style.cssText = 'display:block;position:absolute;left:-10000px;top:0;width:190mm;zoom:1';
+  const altoMax = 277 * 96 / 25.4 - 4;
+  const h = pa.firstElementChild.getBoundingClientRect().height;
+  const z = Math.min(1, altoMax / h);
+  pa.style.cssText = '';
+  pa.firstElementChild.style.zoom = z.toFixed(3);
+  const t = document.title; document.title = 'Resumen_' + P.lbl.replace(/[^\wáéíóúñÁÉÍÓÚÑ]+/g, '_');
+  document.body.classList.add('pc', 'pr-res');
+  setTimeout(() => { print(); document.body.classList.remove('pc', 'pr-res'); document.title = t; }, 60);
+}
+
+/* =========================================================
    RESUMEN GENERAL
    ========================================================= */
 function periodo() {
@@ -1414,7 +1535,7 @@ function vResumen() {
     ${cardDeudasRes(R, P)}
     ${Object.keys(R.deps).length ? `<div class="card"><h3>🏦 Depósitos por concepto</h3>${lista(R.deps, 'depositos', R.dep, '')}</div>` : ''}
     ${tabla}
-    <div class="btns noprint" style="margin-bottom:10px"><button class="btn pri" id="rWa">💬 Enviar por WhatsApp</button><button class="btn" id="rCsv">⬇️ Exportar Excel (CSV)</button><button class="btn" id="rPrint">🖨️ Imprimir / PDF</button></div>`;
+    <div class="btns noprint" style="margin-bottom:10px"><button class="btn pri" id="rWa">💬 Enviar por WhatsApp</button><button class="btn" id="rCsv">⬇️ Exportar Excel (CSV)</button><button class="btn pri" id="rPrint">🖨️ Imprimir hoja A4 / PDF</button></div>`;
 }
 function wResumen() {
   $$('#seg button').forEach(b => b.onclick = () => { UI.per = b.dataset.per; saveUI(); render(); });
@@ -1433,7 +1554,7 @@ function wResumen() {
   if ($('#rWa')) {
     $('#rWa').onclick = () => shareText(textoResumen());
     $('#rCsv').onclick = exportCSV;
-    $('#rPrint').onclick = () => print();
+    $('#rPrint').onclick = imprimirResumen;
   }
 }
 function textoResumen() {
