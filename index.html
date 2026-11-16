@@ -366,7 +366,7 @@ body[data-tab="deudas"] .wrap{max-width:1180px}
    identificador, para no chocar con las demás apps del repositorio.
    ========================================================= */
 const APP_ID = 'crz-control-diario';
-const APP_VER = '1.8.0';
+const APP_VER = '1.8.1';
 const K_DATA = APP_ID + ':data';
 const K_UI = APP_ID + ':ui';
 const K_SNAP = APP_ID + ':snapshot';
@@ -1161,7 +1161,7 @@ function textoDeudas(cf) {
   const L = [`*Deudas pendientes${cf ? ' – ' + cobNom(cf) : ''}*`, `al ${dmy(UI.fecha)}`, ''];
   for (const o of ab) {
     const ult = DB.deudas.filter(x => corrKey(x) === o.k && x.tipo !== 'pago').sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
-    L.push(`• Corr. *${o.corredor}*${!cf && o.ag ? ' (' + o.ag + ')' : ''}: ${gs(o.saldo)}` + (o.pagado ? ` (pagó ${fmt(o.pagado)} de ${fmt(o.deuda)})` : '') + ` – ${Object.keys(o.motivos).join(', ')}` + (ult && ult.ref ? ` – ${ult.ref}` : ''));
+    L.push(`• Corr. *${o.corredor}*${!cf && o.ag ? ' (' + o.ag + ')' : ''}: ${gs(o.saldo)}` + ` – ${Object.keys(o.motivos).join(', ')}` + (ult && ult.ref ? ` – ${ult.ref}` : ''));
   }
   L.push('', `*Total: ${gs(ab.reduce((s, o) => s + o.saldo, 0))}*`);
   return L.join('\n');
