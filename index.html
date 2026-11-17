@@ -176,6 +176,10 @@ body[data-tab="deudas"] .wrap{max-width:1180px}
 .mchip button{width:22px;height:22px;border-radius:50%;background:var(--card);font-size:11px;color:var(--bad)}
 .mlbl{margin-bottom:10px;text-align:left}
 .mlbl input{margin-bottom:0!important;letter-spacing:0!important;text-align:left!important;font-size:16px!important}
+.retform{display:grid;grid-template-columns:170px 1fr auto;gap:8px;align-items:center}
+@media (max-width:600px){ .retform{grid-template-columns:1fr} }
+.cajamov{margin-top:8px}
+.kpi.clk{cursor:pointer} .kpi.clk:hover{border-color:var(--pri)}
 .pr .n.tr{background:var(--soft);color:var(--pri)}
 .nota{width:100%;height:38px;margin-top:8px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);padding:0 10px;font-size:14px;outline:0}
 .nota:focus{border-color:var(--pri)}
@@ -366,7 +370,7 @@ body[data-tab="deudas"] .wrap{max-width:1180px}
    identificador, para no chocar con las demás apps del repositorio.
    ========================================================= */
 const APP_ID = 'crz-control-diario';
-const APP_VER = '1.8.1';
+const APP_VER = '1.9.0';
 const K_DATA = APP_ID + ':data';
 const K_UI = APP_ID + ':ui';
 const K_SNAP = APP_ID + ':snapshot';
@@ -396,6 +400,7 @@ const DEFAULT_CONFIG = () => ({
     { id: 'corpos', nombre: 'Corpos', activo: true }
   ],
   motivos: ['Deuda', 'Diferencia', 'Premio', 'Bloqueado', 'Pagando', 'Otro'],
+  cajaInicial: 0,
   tema: 'auto',
   pin: '',
   ultimoBackup: null
@@ -430,6 +435,8 @@ function migrate(db) {
     });
   }
   if (!Array.isArray(db.deudas)) db.deudas = [];
+  if (!Array.isArray(db.retiros)) db.retiros = [];
+  if (!Array.isArray(db.retirosDel)) db.retirosDel = [];
   if (!Array.isArray(db.deudasDel)) db.deudasDel = [];
   if (!Array.isArray(db.config.motivos)) db.config.motivos = def.motivos;
   return db;
@@ -1055,7 +1062,17 @@ function vDeudas() {
     + opts.map(o => `<button class="chip ${cf === o.v ? 'on' : ''}" data-dcf="${esc(o.v)}"><small class="cg">${esc(o.ag || ' ')}</small><b>${esc(o.v.startsWith('agencia:') ? 'Agencia' : cobNom(o.v))}</b><span>${gs(porCob[o.v] || 0)}</span></button>`).join('') + '</div>';
 
   const total = ab.reduce((s, o) => s + o.saldo, 0);
-  const hero = `<div class="card"><div class="hero" style="margin:0"><div class="lbl">${cf ? 'Adeudado · ' + esc(cobNom(cf)) : 'Total adeudado'} al ${dmy(D)}</div><div class="big money"><small>Gs.</small>${fmt(total)}</div><div class="words">${ab.length} corredor(es) con saldo${posteriores ? ` · <span class="bdg warn">${posteriores} mov. con fecha posterior no contados</span>` : ''}</div></div>
+  const pg = DB.deudas.filter(x => x.tipo === 'pago' && x.fecha <= D && (!cf || x.cob === cf));
+  const sumP = arr => arr.reduce((s2, x) => s2 + (x.monto || 0), 0);
+  const pHoy = pg.filter(x => x.fecha === D), pMes = pg.filter(x => x.fecha.startsWith(D.slice(0, 7)));
+  const ini = primerPago();
+  const kp = `<div class="kpis" style="margin:12px 0 0;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+    <div class="kpi"><div class="lbl">Cobrado hoy</div><div class="v money pos">${gs(sumP(pHoy))}</div><div class="s">${pHoy.length} pago(s)</div></div>
+    <div class="kpi"><div class="lbl">Cobrado en ${MESES[+D.slice(5, 7) - 1]}</div><div class="v money">${gs(sumP(pMes))}</div><div class="s">${pMes.length} pago(s)</div></div>
+    <div class="kpi ef"><div class="lbl">Cobrado desde el inicio</div><div class="v money">${gs(sumP(pg))}</div><div class="s">${pg.length} pago(s)${ini ? ' · desde ' + dmy(ini) : ''}</div></div>
+    <div class="kpi clk" data-gocaja="1" title="Ver la caja paralela"><div class="lbl">Debe haber en caja</div><div class="v money">${gs(cajaEsperada(D))}</div><div class="s">${cf ? 'Caja paralela (todos)' : 'Caja paralela'} · ver ›</div></div>
+  </div>`;
+  const hero = `<div class="card"><div class="hero" style="margin:0"><div class="lbl">${cf ? 'Adeudado · ' + esc(cobNom(cf)) : 'Total adeudado'} al ${dmy(D)}</div><div class="big money"><small>Gs.</small>${fmt(total)}</div><div class="words">${ab.length} corredor(es) con saldo${posteriores ? ` · <span class="bdg warn">${posteriores} mov. con fecha posterior no contados</span>` : ''}</div></div>${kp}
     <div class="btns noprint">${cf ? `<button class="btn wa" id="dWa">💬 Enviar deudas de ${esc(cobNom(cf).split(' ')[0])} por WhatsApp</button>` : '<span class="note" style="margin:0">Elegí un cobrador arriba para ver solo sus corredores y enviarle sus deudas por WhatsApp.</span>'}<button class="btn sm" id="dCsv">⬇️ Exportar deudas (CSV)</button></div></div>`;
 
   const tSal = `<div class="card"><h3>Saldos abiertos <span class="sub">al ${dmy(D)}</span></h3><div class="tscroll"><table class="tbl">
@@ -1119,6 +1136,7 @@ function wDeudas() {
     render(); setTimeout(() => $('#dCorr').focus(), 0);
   };
   $('#dAdd').onclick = add;
+  $$('[data-gocaja]').forEach(b => b.onclick = () => { UI.tab = 'resumen'; UI.per = 'dia'; UI.ref = UI.fecha; saveUI(); render(); setTimeout(() => { const c = $('#cierreCard'); c && c.scrollIntoView({ block: 'start' }); }, 50); });
   $$('[data-saldar]').forEach(b => b.onclick = async () => {
     const o = deudaSaldos().find(x => x.k === b.dataset.saldar); if (!o || o.saldo <= 0) return toast('Ese corredor ya no tiene saldo');
     if (!await ask('Saldar deuda', `¿Registrar pago de ${gs(o.saldo)} del corredor ${o.corredor}${o.ag ? ' (' + o.ag + ')' : ''} con fecha ${dmy(UI.fecha)}?`, 'Saldar')) return;
@@ -1174,14 +1192,21 @@ function mergeDeudas(dst, src) {
   const have = new Set(dst.deudas.map(x => x.id)); let n = 0;
   (src.deudas || []).forEach(x => { if (!have.has(x.id) && !del.has(x.id)) { dst.deudas.push(x); n++; } });
   ((src.config || {}).motivos || []).forEach(m => { if (!dst.config.motivos.includes(m)) dst.config.motivos.push(m); });
+  const rdel = new Set([...(dst.retirosDel || []), ...(src.retirosDel || [])]);
+  dst.retirosDel = [...rdel];
+  dst.retiros = (dst.retiros || []).filter(x => !rdel.has(x.id));
+  const rhave = new Set(dst.retiros.map(x => x.id));
+  (src.retiros || []).forEach(x => { if (!rhave.has(x.id) && !rdel.has(x.id)) { dst.retiros.push(x); n++; } });
   return n;
 }
 
 /* =========================================================
-   CIERRE DE CAJA PARALELO · COBRO DE DEUDAS (Resumen → Día)
-   Conteo físico de billetes y monedas de la caja de cobro de deudas,
-   comparado con el total de PAGOS de deudas registrados ese día (pestaña Deudas).
-   Se guarda en DB.dias[fecha].cierre = { c: {den: cant}, obs, t }
+   CAJA PARALELA · COBRO DE DEUDAS (Resumen → Día)
+   Caja ACUMULATIVA: guarda todo lo cobrado de deudas desde el inicio.
+     Debe haber en caja (al día F) = saldo inicial + pagos hasta F − retiros hasta F
+     Diferencia = total contado − debe haber
+   Conteo:  DB.dias[F].cierre = { c: {den: cant}, obs, t }
+   Retiros: DB.retiros = [{ id, fecha, monto, concepto, t }]  (entregas, depósitos, etc.)
    ========================================================= */
 function cierreDe(d) { return (d && d.cierre) || { c: {}, obs: '' }; }
 function cierreCalc(d) {
@@ -1191,10 +1216,24 @@ function cierreCalc(d) {
   MONEDAS.forEach(v => m += (c[v] || 0) * v);
   return { b, m, t: b + m };
 }
-function pagosDia(f) { return DB.deudas.filter(x => x.fecha === f && x.tipo === 'pago').sort((a, b) => (a.t || 0) - (b.t || 0)); }
-const pagosTot = f => pagosDia(f).reduce((s, x) => s + (x.monto || 0), 0);
 function cierreHay(d) { const c = cierreDe(d); return cierreCalc(d).t > 0 || !!(c.obs || '').trim(); }
 function difTxt(dif) { return dif === 0 ? 'Cuadra ✔' : dif > 0 ? 'Sobrante' : 'Faltante'; }
+const cajaInicial = () => +(cfg().cajaInicial || 0);
+function pagosDia(f) { return DB.deudas.filter(x => x.fecha === f && x.tipo === 'pago').sort((a, b) => (a.t || 0) - (b.t || 0)); }
+const pagosTot = f => pagosDia(f).reduce((s, x) => s + (x.monto || 0), 0);
+const pagosEntre = (a, b) => DB.deudas.filter(x => x.tipo === 'pago' && x.fecha >= a && x.fecha <= b);
+const pagosHasta = f => DB.deudas.reduce((s, x) => s + (x.tipo === 'pago' && x.fecha <= f ? x.monto || 0 : 0), 0);
+const nPagosHasta = f => DB.deudas.filter(x => x.tipo === 'pago' && x.fecha <= f).length;
+function retirosDia(f) { return DB.retiros.filter(x => x.fecha === f).sort((a, b) => (a.t || 0) - (b.t || 0)); }
+const retirosTotDia = f => retirosDia(f).reduce((s, x) => s + (x.monto || 0), 0);
+const retirosHasta = f => DB.retiros.reduce((s, x) => s + (x.fecha <= f ? x.monto || 0 : 0), 0);
+const cajaEsperada = f => cajaInicial() + pagosHasta(f) - retirosHasta(f);
+function primerPago() { const p = DB.deudas.filter(x => x.tipo === 'pago').map(x => x.fecha).sort()[0]; return p || null; }
+function cajaInfo(f) {
+  const ant = cajaEsperada(addDays(f, -1)), hoy = pagosTot(f), ret = retirosTotDia(f), esp = ant + hoy - ret;
+  const k = cierreCalc(getDay(f));
+  return { ant, hoy, nHoy: pagosDia(f).length, ret, esp, k, dif: k.t - esp, acum: pagosHasta(f), nAcum: nPagosHasta(f), retAcum: retirosHasta(f), ini: cajaInicial(), desde: primerPago() };
+}
 
 function cardCierre(f) {
   const d = getDay(f), c = cierreDe(d).c || {}, k = cierreCalc(d);
@@ -1203,41 +1242,58 @@ function cardCierre(f) {
       <input class="qty" data-cden="${v}" type="text" inputmode="numeric" autocomplete="off" value="${q || ''}" placeholder="0" aria-label="Cantidad contada de ${fmt(v)}">
       <div class="sub money ${q ? '' : 'z'}" id="cs-${v}">${fmt(q * v)}</div></div>`; };
   return `<div class="card" id="cierreCard"><h3>🧾 Caja paralela · Cobro de deudas <span class="sub">${dayName(f)} ${dmy(f)}</span></h3>
-    <p class="note" style="margin:0 0 6px">Contá el dinero de los pagos de deudas que recibiste. Tiene que coincidir con el total de pagos registrados ese día en la pestaña Deudas.</p>
+    <p class="note" style="margin:0 0 6px">Esta caja junta todo lo cobrado de deudas desde el inicio. Contá todo lo que hay en la caja: tiene que coincidir con <b>"Debe haber en caja"</b>.</p>
     <div class="sect">Billetes</div>${BILLETES.map(v => row(v, false)).join('')}
     <div class="subt"><span>Total billetes</span><span class="money" id="ckB">${gs(k.b)}</span></div>
     <div class="sect">Monedas</div>${MONEDAS.map(v => row(v, true)).join('')}
     <div class="subt"><span>Total monedas</span><span class="money" id="ckM">${gs(k.m)}</span></div>
-    <div class="tot"><span>TOTAL CONTADO</span><span class="money" id="ckT">${gs(k.t)}</span></div>
-    <div id="ckCmp">${cierreCmp(d, f)}</div>
-    <div class="sect" style="display:flex;justify-content:space-between"><span>Pagos de deudas recibidos</span><span class="lnk" data-gotab="deudas">ir a Deudas</span></div>
+    <div class="tot"><span>TOTAL CONTADO EN CAJA</span><span class="money" id="ckT">${gs(k.t)}</span></div>
+    <div id="ckCmp">${cierreCmp(f)}</div>
+    <div class="sect" style="display:flex;justify-content:space-between"><span>Cobros de deudas del día</span><span class="lnk" data-gotab="deudas">ir a Deudas</span></div>
     ${listaPagos(f)}
+    <div class="sect">Retiros / entregas de la caja</div>
+    <div class="retform noprint"><div class="minput"><span>Gs.</span><input id="rtMonto" type="text" inputmode="numeric" autocomplete="off" placeholder="0"></div><input id="rtCon" class="fi" type="text" maxlength="60" placeholder="Concepto (ej.: entregado a la gerencia, depósito)" autocomplete="off"><button class="btn" id="rtAdd">− Registrar retiro</button></div>
+    ${listaRetiros(f)}
     <label class="mlbl" style="margin-top:12px">Observaciones<textarea id="ckObs" class="fi" rows="2" maxlength="300" placeholder="Ej.: el corredor 35 pagó con transferencia" style="height:auto;padding:8px 10px;resize:vertical">${esc(cierreDe(d).obs || '')}</textarea></label>
-    <div class="btns noprint"><button class="btn pri" id="ckPdf">📄 Guardar PDF</button><button class="btn" id="ckPrint">🖨️ Imprimir</button><button class="btn sm" id="ckClear" style="margin-left:auto">↺ Poner en cero</button></div>
+    <div class="btns noprint"><button class="btn pri" id="ckPdf">📄 Guardar PDF</button><button class="btn" id="ckPrint">🖨️ Imprimir</button><button class="btn sm" id="ckClear" style="margin-left:auto">↺ Poner conteo en cero</button></div>
   </div>`;
+}
+function cierreCmp(f) {
+  const I = cajaInfo(f);
+  return `<div class="cajamov">
+    <div class="row"><div class="l"><b>Había en caja</b><small>al cierre del ${dmy(addDays(f, -1))}</small></div><div class="r money">${gs(I.ant)}</div></div>
+    <div class="row"><div class="l"><b>+ Cobrado hoy</b><small>${I.nHoy} pago(s) de deudas</small></div><div class="r money pos">${gs(I.hoy)}</div></div>
+    ${I.ret ? `<div class="row"><div class="l"><b>− Retiros / entregas de hoy</b></div><div class="r money neg">${gs(-I.ret)}</div></div>` : ''}
+    <div class="row total"><div class="l"><b>DEBE HABER EN CAJA</b></div><div class="r money" style="font-size:18px">${gs(I.esp)}</div></div>
+    <div class="row"><div class="l"><b>Total contado</b></div><div class="r money">${gs(I.k.t)}</div></div>
+    <div class="row total"><div class="l"><b>Diferencia</b><small>${I.k.t ? difTxt(I.dif) : 'Todavía no contaste la caja'}</small></div><div class="r money ${I.k.t ? (I.dif > 0 ? 'pos' : I.dif < 0 ? 'neg' : '') : 'mut'}" style="font-size:18px">${I.k.t ? gs(I.dif) : '—'}</div></div>
+  </div>
+  <p class="note">Cobrado desde el inicio${I.desde ? ' (' + dmy(I.desde) + ')' : ''}: <b>${gs(I.acum)}</b> en ${I.nAcum} pago(s)${I.retAcum ? ` · Retirado: <b>${gs(I.retAcum)}</b>` : ''}${I.ini ? ` · Saldo inicial: <b>${gs(I.ini)}</b>` : ''}.</p>`;
 }
 function listaPagos(f) {
   const ps = pagosDia(f);
-  if (!ps.length) return '<div class="empty" style="padding:10px">No hay pagos de deudas registrados este día.</div>';
+  if (!ps.length) return '<div class="empty" style="padding:10px">No hay cobros de deudas registrados este día.</div>';
   return `<div class="tscroll"><table class="tbl"><thead><tr><th>#</th><th class="cc">Corredor</th><th class="tl">Cobrador</th><th>Monto</th><th class="tl">Referencia</th></tr></thead><tbody>
     ${ps.map((x, i) => `<tr><td>${i + 1}</td><td class="cc"><b>${esc(x.corredor)}</b>${x.ag ? `<div class="mini">${esc(x.ag)}</div>` : ''}</td><td class="tl">${esc(cobNom(x.cob))}</td><td class="money">${fmt(x.monto)}</td><td class="tl mut">${esc(x.ref || '')}</td></tr>`).join('')}
     </tbody><tfoot><tr><td colspan="3">Total (${ps.length})</td><td class="money">${fmt(pagosTot(f))}</td><td></td></tr></tfoot></table></div>`;
 }
-function cierreCmp(d, f) {
-  const k = cierreCalc(d), sis = pagosTot(f), dif = k.t - sis;
-  return `<div class="row" style="margin-top:8px"><div class="l"><b>Pagos de deudas recibidos</b><small>${pagosDia(f).length} pago(s) registrados el ${dmy(f)}</small></div><div class="r money">${gs(sis)}</div></div>
-    <div class="row"><div class="l"><b>Total contado</b></div><div class="r money">${gs(k.t)}</div></div>
-    <div class="row total"><div class="l"><b>Diferencia</b><small>${k.t || sis ? difTxt(dif) : 'Sin datos'}</small></div><div class="r money ${dif > 0 ? 'pos' : dif < 0 ? 'neg' : ''}" style="font-size:18px">${gs(dif)}</div></div>`;
+function listaRetiros(f) {
+  const rs = retirosDia(f);
+  if (!rs.length) return '<div class="note" style="margin:6px 0 0">Sin retiros este día. Registrá acá cuando saques plata de esta caja (entregas, depósitos), así sigue cuadrando.</div>';
+  return `<div class="tscroll"><table class="tbl"><tbody>${rs.map(x => `<tr><td class="tl">${esc(x.concepto || 'Retiro')}</td><td class="money neg">${fmt(-x.monto)}</td><td style="width:40px"><button class="ibtn" data-rtdel="${x.id}" title="Borrar">🗑</button></td></tr>`).join('')}</tbody></table></div>`;
 }
 function cardCierresLista(a, b) {
-  const ks = [...new Set(Object.keys(DB.dias).filter(k => k >= a && k <= b && cierreHay(DB.dias[k])).concat(DB.deudas.filter(x => x.tipo === 'pago' && x.fecha >= a && x.fecha <= b).map(x => x.fecha)))].sort();
+  const ks = [...new Set(Object.keys(DB.dias).filter(k => k >= a && k <= b && cierreHay(DB.dias[k]))
+    .concat(pagosEntre(a, b).map(x => x.fecha)).concat(DB.retiros.filter(x => x.fecha >= a && x.fecha <= b).map(x => x.fecha)))].sort();
   if (!ks.length) return '';
-  let tc = 0, ts = 0;
-  const rows = ks.map(k => { const c = cierreCalc(getDay(k)).t, s = pagosTot(k), df = c - s; tc += c; ts += s;
-    return `<tr class="clk" data-dia="${k}"><td><b>${DIAS3[pISO(k).getDay()]} ${dmy(k).slice(0, 5)}</b></td><td class="money">${fmt(c)}</td><td class="money">${fmt(s)}</td><td class="money ${df > 0 ? 'pos' : df < 0 ? 'neg' : ''}"><b>${fmt(df)}</b></td></tr>`; }).join('');
+  let tc = 0, tr = 0;
+  const rows = ks.map(k => { const I = cajaInfo(k); tc += I.hoy; tr += I.ret;
+    return `<tr class="clk" data-dia="${k}"><td><b>${DIAS3[pISO(k).getDay()]} ${dmy(k).slice(0, 5)}</b></td><td class="money">${fmt(I.hoy)}</td><td class="money">${I.ret ? fmt(-I.ret) : ''}</td><td class="money"><b>${fmt(I.esp)}</b></td><td class="money">${I.k.t ? fmt(I.k.t) : '<span class="mut">—</span>'}</td><td class="money ${I.k.t ? (I.dif > 0 ? 'pos' : I.dif < 0 ? 'neg' : '') : ''}">${I.k.t ? '<b>' + fmt(I.dif) + '</b>' : ''}</td></tr>`; }).join('');
+  const last = cajaInfo(ks[ks.length - 1]);
   return `<div class="card"><h3>🧾 Caja paralela · Cobro de deudas <span class="sub">tocá un día para verlo</span></h3><div class="tscroll"><table class="tbl">
-    <thead><tr><th>Fecha</th><th>Contado</th><th>Pagos deudas</th><th>Diferencia</th></tr></thead><tbody>${rows}</tbody>
-    <tfoot><tr><td>Total (${ks.length})</td><td class="money">${fmt(tc)}</td><td class="money">${fmt(ts)}</td><td class="money">${fmt(tc - ts)}</td></tr></tfoot></table></div></div>`;
+    <thead><tr><th>Fecha</th><th>Cobrado</th><th>Retiros</th><th>Debe haber</th><th>Contado</th><th>Diferencia</th></tr></thead><tbody>${rows}</tbody>
+    <tfoot><tr><td>Período</td><td class="money">${fmt(tc)}</td><td class="money">${tr ? fmt(-tr) : ''}</td><td class="money">${fmt(last.esp)}</td><td></td><td></td></tr></tfoot></table></div>
+    <p class="note">Cobrado desde el inicio${last.desde ? ' (' + dmy(last.desde) + ')' : ''}: <b>${gs(last.acum)}</b> en ${last.nAcum} pago(s).</p></div>`;
 }
 function wCierre() {
   const card = $('#cierreCard'); if (!card) return;
@@ -1260,40 +1316,63 @@ function wCierre() {
     const d = getDay(f); if (!d.cierre) return toast('Ya está en cero');
     if (!await ask('Poner en cero', `¿Borrar el conteo de la caja paralela del ${dmy(f)}?`, 'Poner en cero', true)) return;
     const prev = JSON.parse(JSON.stringify(d.cierre)); delete d.cierre; save(); render();
-    toast('Caja paralela en cero', 'Deshacer', () => { getDay(f, true).cierre = prev; save(); render(); });
+    toast('Conteo en cero', 'Deshacer', () => { getDay(f, true).cierre = prev; save(); render(); });
   };
+  const rm = $('#rtMonto');
+  rm.addEventListener('input', () => { const v = digits(rm.value).slice(0, 13); rm.value = v ? fmt(+v) : ''; });
+  const addRet = async () => {
+    const m = +digits(rm.value); if (!m) { rm.focus(); return toast('Escribí el monto retirado'); }
+    const con = $('#rtCon').value.trim() || 'Retiro';
+    if (!await ask('Registrar retiro', `¿Registrar retiro de ${gs(m)} de la caja paralela (${con}) con fecha ${dmy(f)}?`, 'Registrar')) return;
+    DB.retiros.push({ id: uid(), fecha: f, monto: m, concepto: con, t: Date.now() }); save(); render(); toast('Retiro registrado');
+  };
+  $('#rtAdd').onclick = addRet;
+  [rm, $('#rtCon')].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addRet(); } }));
+  $$('[data-rtdel]').forEach(b => b.onclick = () => {
+    const i = DB.retiros.findIndex(x => x.id === b.dataset.rtdel); if (i < 0) return;
+    const [x] = DB.retiros.splice(i, 1); DB.retirosDel.push(x.id); save(); render();
+    toast(`Retiro de ${gs(x.monto)} borrado`, 'Deshacer', () => { DB.retirosDel = DB.retirosDel.filter(id => id !== x.id); DB.retiros.splice(i, 0, x); save(); render(); });
+  });
 }
 function paintCierre() {
   const f = UI.ref, d = getDay(f), c = cierreDe(d).c || {}, k = cierreCalc(d);
   BILLETES.concat(MONEDAS).forEach(v => { const el = $('#cs-' + v); if (el) { el.textContent = fmt((c[v] || 0) * v); el.classList.toggle('z', !c[v]); } });
   $('#ckB').textContent = gs(k.b); $('#ckM').textContent = gs(k.m); $('#ckT').textContent = gs(k.t);
-  $('#ckCmp').innerHTML = cierreCmp(d, f);
+  $('#ckCmp').innerHTML = cierreCmp(f);
 }
 
 /* ----- Datos comunes para imprimir / PDF ----- */
 function cierreDatos(f) {
-  const d = getDay(f), c = cierreDe(d).c || {}, k = cierreCalc(d), sis = pagosTot(f);
+  const d = getDay(f), c = cierreDe(d).c || {}, I = cajaInfo(f);
   const den = BILLETES.map(v => ({ v, tipo: 'Billete', q: c[v] || 0 })).concat(MONEDAS.map(v => ({ v, tipo: 'Moneda', q: c[v] || 0 })));
   const pagos = pagosDia(f).map(x => ({ corr: x.corredor + (x.ag ? ' (' + x.ag + ')' : ''), cob: cobNom(x.cob), monto: x.monto, ref: x.ref || '' }));
-  return { f, den, k, sis, dif: k.t - sis, pagos, obs: (cierreDe(d).obs || '').trim() };
+  const ret = retirosDia(f).map(x => ({ con: x.concepto || 'Retiro', monto: x.monto }));
+  return { f, den, I, k: I.k, pagos, ret, obs: (cierreDe(d).obs || '').trim() };
+}
+function movFilas(X) {
+  const I = X.I, r = [[`Había en caja al cierre del ${dmy(addDays(X.f, -1))}`, I.ant], [`+ Cobrado hoy (${I.nHoy} pago/s)`, I.hoy]];
+  if (I.ret) r.push(['− Retiros / entregas de hoy', -I.ret]);
+  r.push(['DEBE HABER EN CAJA', I.esp, 'big'], ['Total contado', I.k.t], [`Diferencia (${I.k.t ? difTxt(I.dif).replace(' ✔', '') : 'sin conteo'})`, I.k.t ? I.dif : null, 'big']);
+  return r;
 }
 function imprimirCierre(f) {
-  const X = cierreDatos(f);
-  const tr = (a, b, cls = '') => `<tr class="${cls}"><td>${a}</td><td>${b}</td></tr>`;
+  const X = cierreDatos(f), I = X.I;
   const html = `<div class="ph"><div><h1>Caja paralela · Cobro de deudas</h1><div>CRz Control Diario</div></div><div class="pf"><b>${dayName(f)} ${dmy(f)}</b><div>Impreso: ${new Date().toLocaleString('es-PY')}</div></div></div>
-    <h2>Conteo de efectivo</h2>
+    <h2>Movimiento de la caja</h2>
+    <table class="kv"><tbody>${movFilas(X).map(([a, b, c]) => `<tr class="${c || ''}"><td>${a}</td><td>${b === null ? '—' : 'Gs. ' + fmt(b)}</td></tr>`).join('')}</tbody></table>
+    <p style="font-size:9pt;color:#555;margin:4px 0 0">Cobrado desde el inicio${I.desde ? ' (' + dmy(I.desde) + ')' : ''}: Gs. ${fmt(I.acum)} en ${I.nAcum} pago(s)${I.retAcum ? ' · Retirado: Gs. ' + fmt(I.retAcum) : ''}${I.ini ? ' · Saldo inicial: Gs. ' + fmt(I.ini) : ''}</p>
+    <h2>Conteo de la caja</h2>
     <table><thead><tr><th>Denominación</th><th>Cantidad</th><th>Subtotal</th></tr></thead><tbody>
     ${X.den.map(x => `<tr${x.v === 1000 ? ' class="sep"' : ''}><td>${x.tipo} ${fmt(x.v)}</td><td>${x.q}</td><td>${fmt(x.q * x.v)}</td></tr>`).join('')}
     </tbody><tfoot><tr><td>Total billetes</td><td></td><td>${fmt(X.k.b)}</td></tr><tr><td>Total monedas</td><td></td><td>${fmt(X.k.m)}</td></tr><tr class="big"><td>TOTAL CONTADO</td><td></td><td>Gs. ${fmt(X.k.t)}</td></tr></tfoot></table>
-    <h2>Comparación</h2>
-    <table class="kv"><tbody>${tr('Pagos de deudas recibidos (' + X.pagos.length + ')', 'Gs. ' + fmt(X.sis))}${tr('Total contado', 'Gs. ' + fmt(X.k.t))}${tr('<b>Diferencia</b> (' + difTxt(X.dif) + ')', '<b>Gs. ' + fmt(X.dif) + '</b>', 'big')}</tbody></table>
-    <h2>Detalle de pagos recibidos</h2>
+    <h2>Cobros de deudas del día</h2>
     <table><thead><tr><th>#</th><th style="text-align:left">Corredor</th><th style="text-align:left">Cobrador</th><th>Monto</th><th style="text-align:left">Referencia</th></tr></thead><tbody>
-    ${X.pagos.map((p, i) => `<tr><td>${i + 1}</td><td style="text-align:left">${esc(p.corr)}</td><td style="text-align:left">${esc(p.cob)}</td><td>${fmt(p.monto)}</td><td style="text-align:left">${esc(p.ref)}</td></tr>`).join('') || '<tr><td colspan="5" style="text-align:center">Sin pagos registrados</td></tr>'}
-    </tbody><tfoot><tr><td colspan="3">Total</td><td>${fmt(X.sis)}</td><td></td></tr></tfoot></table>
+    ${X.pagos.map((p, i) => `<tr><td>${i + 1}</td><td style="text-align:left">${esc(p.corr)}</td><td style="text-align:left">${esc(p.cob)}</td><td>${fmt(p.monto)}</td><td style="text-align:left">${esc(p.ref)}</td></tr>`).join('') || '<tr><td colspan="5" style="text-align:center">Sin cobros este día</td></tr>'}
+    </tbody><tfoot><tr><td colspan="3">Total</td><td>${fmt(I.hoy)}</td><td></td></tr></tfoot></table>
+    ${X.ret.length ? `<h2>Retiros / entregas</h2><table><tbody>${X.ret.map(r => `<tr><td>${esc(r.con)}</td><td>-${fmt(r.monto)}</td></tr>`).join('')}</tbody></table>` : ''}
     ${X.obs ? `<h2>Observaciones</h2><p class="obs">${esc(X.obs)}</p>` : ''}
     <div class="firmas"><div>Entregado por</div><div>Recibido por</div></div>`;
-  $('#printArea').innerHTML = html;
+  const pa = $('#printArea'); pa.innerHTML = html;
   const t = document.title; document.title = 'Caja_paralela_deudas_' + dmy(f).replace(/\//g, '-');
   document.body.classList.add('pc');
   setTimeout(() => { print(); document.body.classList.remove('pc'); document.title = t; }, 50);
@@ -1311,18 +1390,17 @@ async function pdfCierre(f) {
   let lib;
   try { toast('Generando PDF…'); lib = await cargarJsPDF(); }
   catch (e) { toast('Sin conexión para generar el PDF: en la ventana de impresión elegí "Guardar como PDF"', null, null, 5000); return imprimirCierre(f); }
-  const X = cierreDatos(f);
+  const X = cierreDatos(f), I = X.I;
   const doc = new lib.jsPDF({ unit: 'mm', format: 'a4' });
   const L = 18, R = 192, W = R - L; let y = 20;
   const teal = [15, 118, 110], gris = [93, 112, 107];
-  const nuevaPag = () => { if (y > 270) { doc.addPage(); y = 20; } };
+  const nuevaPag = () => { if (y > 272) { doc.addPage(); y = 20; } };
   doc.setFont('helvetica', 'bold'); doc.setFontSize(17); doc.setTextColor(...teal); doc.text('Caja paralela - Cobro de deudas', L, y);
   doc.setFontSize(12); doc.setTextColor(20); doc.text(`${dayName(f)} ${dmy(f)}`, R, y, { align: 'right' });
   y += 6; doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...gris);
   doc.text('CRz Control Diario', L, y); doc.text('Generado: ' + new Date().toLocaleString('es-PY'), R, y, { align: 'right' });
   y += 4; doc.setDrawColor(...teal); doc.setLineWidth(0.6); doc.line(L, y, R, y); y += 8;
   const h2 = t => { nuevaPag(); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...teal); doc.text(t.toUpperCase(), L, y); y += 2; doc.setDrawColor(210); doc.setLineWidth(0.2); doc.line(L, y, R, y); y += 5; doc.setTextColor(20); };
-  // celdas: [{t, x, align}]
   const fila = (cells, opt = {}) => {
     nuevaPag();
     if (opt.fill) { doc.setFillColor(...opt.fill); doc.rect(L, y - 4.2, W, 6.2, 'F'); }
@@ -1330,23 +1408,25 @@ async function pdfCierre(f) {
     cells.forEach(c => { if (c.t !== '' && c.t != null) doc.text(String(c.t), c.x, y, { align: c.a || 'left' }); });
     y += opt.h || 6;
   };
+  const C2 = (a, b, o) => fila([{ t: a, x: L + 2 }, { t: b, x: R - 2, a: 'right' }], o);
   const C3 = (a, b, c, o) => fila([{ t: a, x: L + 2 }, { t: b, x: 110, a: 'right' }, { t: c, x: R - 2, a: 'right' }], o);
-  h2('Conteo de efectivo');
+  h2('Movimiento de la caja');
+  movFilas(X).forEach(([a, b, c]) => C2(a, b === null ? '—' : 'Gs. ' + fmt(b), c ? { bold: true, size: 11.5, h: 8, fill: a.startsWith('Diferencia') ? (b < 0 ? [254, 226, 226] : [220, 252, 231]) : [224, 242, 239] } : {}));
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...gris);
+  doc.text(`Cobrado desde el inicio${I.desde ? ' (' + dmy(I.desde) + ')' : ''}: Gs. ${fmt(I.acum)} en ${I.nAcum} pago(s)${I.retAcum ? ' - Retirado: Gs. ' + fmt(I.retAcum) : ''}${I.ini ? ' - Saldo inicial: Gs. ' + fmt(I.ini) : ''}`, L + 2, y); y += 7;
+  h2('Conteo de la caja');
   C3('Denominación', 'Cantidad', 'Subtotal', { bold: true, size: 9, color: gris });
   X.den.forEach(x => { if (x.v === 1000) y += 1; C3(`${x.tipo} ${fmt(x.v)}`, x.q, fmt(x.q * x.v)); });
   y += 1; C3('Total billetes', '', fmt(X.k.b), { bold: true, fill: [241, 245, 244] });
   C3('Total monedas', '', fmt(X.k.m), { bold: true, fill: [241, 245, 244] });
   C3('TOTAL CONTADO', '', 'Gs. ' + fmt(X.k.t), { bold: true, size: 11.5, fill: [224, 242, 239], h: 8 });
-  y += 3; h2('Comparación');
-  C3(`Pagos de deudas recibidos (${X.pagos.length})`, '', 'Gs. ' + fmt(X.sis));
-  C3('Total contado', '', 'Gs. ' + fmt(X.k.t));
-  C3(`Diferencia (${difTxt(X.dif).replace(' ✔', '')})`, '', 'Gs. ' + fmt(X.dif), { bold: true, size: 11.5, fill: X.dif < 0 ? [254, 226, 226] : [220, 252, 231], h: 8 });
-  y += 3; h2('Detalle de pagos recibidos');
+  y += 3; h2('Cobros de deudas del día');
   const P5 = (n, a, b, c, d, o) => fila([{ t: n, x: L + 2 }, { t: a, x: L + 10 }, { t: b, x: L + 62 }, { t: c, x: 140, a: 'right' }, { t: d, x: 145 }], o);
   P5('#', 'Corredor', 'Cobrador', 'Monto', 'Referencia', { bold: true, size: 9, color: gris });
-  if (!X.pagos.length) P5('', 'Sin pagos registrados', '', '', '');
+  if (!X.pagos.length) P5('', 'Sin cobros este día', '', '', '');
   X.pagos.forEach((p, i) => P5(i + 1, doc.splitTextToSize(p.corr, 50)[0], doc.splitTextToSize(p.cob, 50)[0], fmt(p.monto), doc.splitTextToSize(p.ref, 45)[0], { size: 9.5 }));
-  P5('', 'Total', '', fmt(X.sis), '', { bold: true, fill: [241, 245, 244] });
+  P5('', 'Total', '', fmt(I.hoy), '', { bold: true, fill: [241, 245, 244] });
+  if (X.ret.length) { y += 3; h2('Retiros / entregas'); X.ret.forEach(r => C2(r.con, '-' + fmt(r.monto))); }
   if (X.obs) { y += 3; h2('Observaciones'); doc.setFont('helvetica', 'normal'); doc.setFontSize(10); const ls = doc.splitTextToSize(X.obs, W - 4); doc.text(ls, L + 2, y); y += ls.length * 5; }
   y = Math.max(y + 22, 262); if (y > 280) { doc.addPage(); y = 40; }
   doc.setDrawColor(120); doc.setLineWidth(0.3);
@@ -1391,12 +1471,13 @@ function imprimirResumen() {
 
   // Deudas + caja paralela
   const hasta = P.b < todayISO() ? P.b : todayISO();
-  let pagC = 0, pagS = 0;
-  Object.keys(DB.dias).filter(k => k >= P.a && k <= P.b).forEach(k => pagC += cierreCalc(DB.dias[k]).t);
-  DB.deudas.forEach(x => { if (x.tipo === 'pago' && x.fecha >= P.a && x.fecha <= P.b) pagS += x.monto; });
+  const cI = cajaInfo(hasta);
   const sal = deudaSaldos(hasta).filter(o => o.saldo > 0).sort((a, b) => b.saldo - a.saldo).slice(0, 6);
   const tDeu = `<tr><td>Deudas nuevas (${R.dN})</td><td>${f0(R.dM)}</td></tr><tr><td>Pagos recibidos (${R.pN})</td><td>${f0(R.pM)}</td></tr><tr class="tt"><td>Saldo pendiente al ${dmy(hasta).slice(0, 5)}</td><td>${f0(R.dSal)}</td></tr>`
-    + (pagC || pagS ? `<tr><td>Caja paralela: contado</td><td>${f0(pagC)}</td></tr><tr><td>Diferencia vs. pagos</td><td class="${pagC - pagS < 0 ? 'ng' : ''}">${f0(pagC - pagS)}</td></tr>` : '')
+    + `<tr><td>Cobrado desde el inicio (${cI.nAcum})</td><td>${f0(cI.acum)}</td></tr>`
+    + (cI.retAcum ? `<tr><td>Retirado de la caja</td><td>${f0(-cI.retAcum)}</td></tr>` : '')
+    + `<tr class="tt"><td>Caja paralela: debe haber</td><td>${f0(cI.esp)}</td></tr>`
+    + (cI.k.t ? `<tr><td>Contado al ${dmy(hasta).slice(0, 5)}</td><td>${f0(cI.k.t)}</td></tr><tr><td>Diferencia (${difTxt(cI.dif).replace(' ✔', '')})</td><td class="${cI.dif < 0 ? 'ng' : ''}">${f0(cI.dif)}</td></tr>` : '')
     + (sal.length ? `<tr><td colspan="2" class="sub">Mayores saldos: ${sal.map(o => `${esc(o.corredor)}${o.ag ? ' (' + esc(o.ag.replace('Ag. ', '')) + ')' : ''} ${f0(o.saldo)}`).join(' · ')}</td></tr>` : '');
 
   // Bloque inferior: día → conteo por denominación; período → detalle por día/mes
@@ -1491,7 +1572,9 @@ function cardDeudasRes(R, P) {
   return `<div class="card"><h3>📒 Deudas de corredores <span class="sub">tocá para ver el detalle</span></h3>
     <div class="row clk" data-gotab="deudas"><div class="l"><b>Deudas nuevas</b><small>${R.dN} registro(s) en el período</small></div><div class="r money neg">${gs(R.dM)}</div></div>
     <div class="row clk" data-gotab="deudas"><div class="l"><b>Pagos recibidos</b><small>${R.pN} pago(s) en el período</small></div><div class="r money pos">${gs(R.pM)}</div></div>
-    <div class="row total clk" data-gotab="deudas"><div class="l"><b>Saldo pendiente</b><small>al ${dmy(hasta)}</small></div><div class="r money">${gs(R.dSal)}</div></div></div>`;
+    <div class="row total clk" data-gotab="deudas"><div class="l"><b>Saldo pendiente</b><small>al ${dmy(hasta)}</small></div><div class="r money">${gs(R.dSal)}</div></div>
+    <div class="row clk" data-gotab="deudas"><div class="l"><b>Cobrado desde el inicio</b><small>${nPagosHasta(hasta)} pago(s) al ${dmy(hasta)}</small></div><div class="r money">${gs(pagosHasta(hasta))}</div></div>
+    <div class="row"><div class="l"><b>Debe haber en caja paralela</b><small>al ${dmy(hasta)}${retirosHasta(hasta) ? ' · retirado ' + gs(retirosHasta(hasta)) : ''}</small></div><div class="r money">${gs(cajaEsperada(hasta))}</div></div></div>`;
 }
 function vResumen() {
   const P = periodo(), R = agregar(P.a, P.b);
@@ -1567,7 +1650,7 @@ function textoResumen() {
   L.push('*🏆 Premios por cobrador*');
   Object.keys(R.cobs).forEach(id => L.push(`• ${nomG('cobradores', id)}: ${gs(R.cobs[id])} (${R.cobsN[id]})`));
   L.push(`*Total premios: ${gs(R.pr)}*`);
-  if (DB.deudas.length) L.push('', '*📒 Deudas de corredores*', `Nuevas: ${gs(R.dM)} (${R.dN})`, `Pagos: ${gs(R.pM)} (${R.pN})`, `*Saldo pendiente: ${gs(R.dSal)}*`);
+  if (DB.deudas.length) L.push('', '*📒 Deudas de corredores*', `Nuevas: ${gs(R.dM)} (${R.dN})`, `Pagos: ${gs(R.pM)} (${R.pN})`, `*Saldo pendiente: ${gs(R.dSal)}*`, `Cobrado desde el inicio: ${gs(pagosHasta(P.b < todayISO() ? P.b : todayISO()))}`, `Debe haber en caja paralela: ${gs(cajaEsperada(P.b < todayISO() ? P.b : todayISO()))}`);
   return L.join('\n');
 }
 function textoDia() {
@@ -1629,6 +1712,9 @@ function vAjustes() {
     ${c[k].map(x => `<div class="set ${x.activo ? '' : 'off'}"><input type="text" data-list="${k}" data-id="${x.id}" value="${esc(x.nombre)}" maxlength="40">${k === 'depositos' ? '<span></span>' : `<input type="text" data-grp="${k}" data-id="${x.id}" value="${esc(x.grupo || '')}" maxlength="20" placeholder="Agencia">`}<label class="sw"><input type="checkbox" data-sw="${k}" data-id="${x.id}" ${x.activo ? 'checked' : ''}><i></i></label></div>`).join('')}
     <div class="btns"><button class="btn sm" data-add="${k}">＋ ${nuevo}</button></div>
     ${k !== 'depositos' ? '<p class="note">La agencia (ej.: Ag. 17 VE, Ag. 26) agrupa y subtotaliza en los totales y el resumen.</p>' : ''}<p class="note">Desactivar oculta el elemento sin borrar los datos ya cargados; siguen apareciendo en el resumen.</p></div>`).join('')}
+  <div class="card"><h3>🧾 Caja paralela (cobro de deudas)</h3>
+    <div class="dep"><label for="cajaIni">Saldo inicial de la caja</label><div class="minput"><span>Gs.</span><input id="cajaIni" type="text" inputmode="numeric" autocomplete="off" value="${c.cajaInicial ? fmt(c.cajaInicial) : ''}" placeholder="0"></div></div>
+    <p class="note">Solo si ya había plata en esta caja antes de empezar a registrar los cobros en la app. Se suma a lo cobrado para calcular "Debe haber en caja".</p></div>
   <div class="card"><h3>📒 Motivos de deuda</h3><div class="mchips">${c.motivos.map((m, i) => `<span class="mchip">${esc(m)}<button data-mdel="${i}" aria-label="Quitar">✕</button></span>`).join('')}</div>
     <div class="btns"><button class="btn sm" id="mAdd">＋ Nuevo motivo</button></div><p class="note">Quitar un motivo no cambia las deudas ya cargadas con ese motivo.</p></div>
   <div class="card"><h3>🔒 Seguridad</h3>
@@ -1667,6 +1753,7 @@ function wAjustes() {
   if ($('#pinOff')) $('#pinOff').onclick = async () => { if (await ask('Quitar PIN', '¿Desactivar el PIN de acceso?', 'Quitar', true)) { cfg().pin = ''; save(); render(); } };
   $('#bkExp').onclick = () => { cfg().ultimoBackup = Date.now(); dirty = true; saveNow(); download(JSON.stringify({ app: APP_ID, ver: APP_VER, fecha: new Date().toISOString(), data: DB }, null, 1), `respaldo_control-diario_${todayISO()}.json`, 'application/json'); render(); toast('Respaldo descargado'); };
   $('#bkImp').onclick = () => $('#fileIn').click();
+  const ci = $('#cajaIni'); ci.addEventListener('input', () => { const v = digits(ci.value).slice(0, 13); ci.value = v ? fmt(+v) : ''; cfg().cajaInicial = +v || 0; save(); });
   $$('[data-mdel]').forEach(b => b.onclick = () => { cfg().motivos.splice(+b.dataset.mdel, 1); save(); render(); });
   $('#mAdd').onclick = async () => { const n = await ask('Nuevo motivo', 'Escribí el motivo:', 'Agregar', false, '<input type="text" maxlength="30" style="letter-spacing:0;text-align:left;font-size:16px">'); if (!n || !n.trim()) return; if (!cfg().motivos.includes(n.trim())) cfg().motivos.push(n.trim()); save(); render(); };
   pintarSnaps();
