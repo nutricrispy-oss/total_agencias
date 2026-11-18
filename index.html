@@ -176,6 +176,18 @@ body[data-tab="deudas"] .wrap{max-width:1180px}
 .mchip button{width:22px;height:22px;border-radius:50%;background:var(--card);font-size:11px;color:var(--bad)}
 .mlbl{margin-bottom:10px;text-align:left}
 .mlbl input{margin-bottom:0!important;letter-spacing:0!important;text-align:left!important;font-size:16px!important}
+.ptot{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ptot .kpis{grid-column:1/-1}
+@media (max-width:600px){ .ptot{grid-template-columns:1fr} }
+.pt-big{border-radius:var(--r);padding:16px;border:1px solid var(--line);background:linear-gradient(135deg,var(--soft),var(--card))}
+.pt-big.gold{background:linear-gradient(135deg,var(--goldSoft),var(--card))}
+.pt-big .lbl{font-size:12px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.6px}
+.pt-big .v{font-size:36px;font-weight:800;color:var(--pri);line-height:1.15;margin-top:4px;font-variant-numeric:tabular-nums}
+.pt-big.gold .v{color:var(--gold)}
+.pt-big .v small{font-size:16px;font-weight:700;opacity:.8;margin:0 4px}
+.pt-big .words{font-size:12.5px;color:var(--mut);margin-top:4px;font-style:italic}
+.chip.tchip{border-color:var(--gold)}
+.tbl tr.sub td{background:var(--bg2);font-weight:700;color:var(--pri)}
 .retform{display:grid;grid-template-columns:170px 1fr auto;gap:8px;align-items:center}
 @media (max-width:600px){ .retform{grid-template-columns:1fr} }
 .cajamov{margin-top:8px}
@@ -370,7 +382,7 @@ body[data-tab="deudas"] .wrap{max-width:1180px}
    identificador, para no chocar con las demás apps del repositorio.
    ========================================================= */
 const APP_ID = 'crz-control-diario';
-const APP_VER = '1.9.0';
+const APP_VER = '1.10.0';
 const K_DATA = APP_ID + ':data';
 const K_UI = APP_ID + ':ui';
 const K_SNAP = APP_ID + ':snapshot';
@@ -895,12 +907,56 @@ function bindMoney(inputs, onval) {
 /* =========================================================
    PREMIOS
    ========================================================= */
+/* ---------- Premios · Σ Totales del día ---------- */
+function prTotDatos(f) {
+  const d = getDay(f);
+  const ids = cfg().cobradores.map(c => c.id).filter(id => prCnt(d, id)).concat(Object.keys(d.pr || {}).filter(id => !cfg().cobradores.find(c => c.id === id) && prCnt(d, id)));
+  const todos = ids.flatMap(id => (d.pr[id] || []).map(x => ({ ...x, cob: id })));
+  const tot = todos.reduce((s, x) => s + (x.monto || 0), 0), n = todos.length;
+  const may = todos.reduce((m, x) => !m || x.monto > m.monto ? x : m, null);
+  return { d, ids, tot, n, prom: n ? Math.round(tot / n) : 0, may };
+}
+function vPrTotales(chips) {
+  const f = UI.fecha, T = prTotDatos(f), Y = prTotDatos(addDays(f, -1));
+  const vs = (a, b) => { if (!b) return ''; const p = Math.round((a - b) / b * 100); return `<span class="${p > 0 ? 'neg' : p < 0 ? 'pos' : ''}">${p > 0 ? '▲' : p < 0 ? '▼' : '='} ${Math.abs(p)}%</span>`; };
+  // tabla agrupada por agencia
+  const ord = [], m = {};
+  T.ids.forEach(id => { const g = grupo('cobradores', id) || ''; if (!m[g]) { m[g] = []; ord.push(g); } m[g].push(id); });
+  let rows = '';
+  ord.forEach(g => {
+    rows += m[g].map(id => { const s = prCob(T.d, id), n = prCnt(T.d, id); return `<tr><td class="tl"><b>${esc(nombre('cobradores', id))}</b>${g ? `<div class="mini">${esc(g)}</div>` : ''}</td><td>${n}</td><td class="money"><b>${fmt(s)}</b></td><td class="mut">${T.tot ? Math.round(s / T.tot * 100) : 0}%</td></tr>`; }).join('');
+    if (g && m[g].length > 1) { const s = m[g].reduce((a, id) => a + prCob(T.d, id), 0), n = m[g].reduce((a, id) => a + prCnt(T.d, id), 0); rows += `<tr class="sub"><td class="tl">Subtotal ${esc(g)}</td><td>${n}</td><td class="money">${fmt(s)}</td><td>${T.tot ? Math.round(s / T.tot * 100) : 0}%</td></tr>`; }
+  });
+  return `<div class="chips" id="cobChips">${chips}</div>
+  <div class="card ptot">
+    <div class="pt-big gold"><div class="lbl">Gs. entregados en premios · ${dayName(f)} ${dmy(f)}</div><div class="v money"><small>Gs.</small>${fmt(T.tot)}</div><div class="words">${enLetras(T.tot)}</div></div>
+    <div class="pt-big"><div class="lbl">Cantidad de premios entregados</div><div class="v">${T.n}<small> premio${T.n === 1 ? '' : 's'}</small></div></div>
+    <div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-top:4px">
+      <div class="kpi"><div class="lbl">Promedio por premio</div><div class="v money">${gs(T.prom)}</div></div>
+      <div class="kpi"><div class="lbl">Premio más alto</div><div class="v money">${gs(T.may ? T.may.monto : 0)}</div><div class="s">${T.may ? esc(nombre('cobradores', T.may.cob)) : '—'}</div></div>
+      <div class="kpi"><div class="lbl">Día anterior</div><div class="v money">${gs(Y.tot)}</div><div class="s">${Y.n} premio(s) ${vs(T.tot, Y.tot)}</div></div>
+    </div>
+  </div>
+  <div class="card"><h3>Detalle por cobrador <span class="sub">${dmy(f)}</span></h3>
+    ${T.n ? `<div class="tscroll"><table class="tbl"><thead><tr><th class="tl">Cobrador</th><th>Cantidad</th><th>Gs.</th><th>%</th></tr></thead><tbody>${rows}</tbody>
+    <tfoot><tr><td class="tl">TOTAL</td><td>${T.n}</td><td class="money">${fmt(T.tot)}</td><td>100%</td></tr></tfoot></table></div>` : '<div class="empty">Todavía no hay premios cargados este día.</div>'}
+    <div class="btns noprint"><button class="btn wa" id="ptWa">💬 Enviar totales por WhatsApp</button></div></div>`;
+}
+function textoPrTotales() {
+  const f = UI.fecha, T = prTotDatos(f);
+  const L = [`*CRz Control Diario*`, `📅 ${dayName(f)} ${dmy(f)}`, '', `*🏆 Totales de premios del día*`, ''];
+  T.ids.forEach(id => L.push(`• ${nomG('cobradores', id)}: ${gs(prCob(T.d, id))} (${prCnt(T.d, id)})`));
+  L.push('', `*Gs. entregados: ${gs(T.tot)}*`, `*Premios entregados: ${T.n}*`);
+  return L.join('\n');
+}
 function vPremios() {
   const d = getDay(UI.fecha);
   const cobs = activos('cobradores');
-  if (!cobs.find(c => c.id === UI.cob)) UI.cob = cobs[0] ? cobs[0].id : '';
+  if (UI.cob !== 'totales' && !cobs.find(c => c.id === UI.cob)) UI.cob = cobs[0] ? cobs[0].id : '';
   if (!UI.cob) return '<div class="card empty">No hay cobradores activos. Agregalos en Ajustes.</div>';
-  const chips = cobs.map(c => `<button class="chip ${UI.cob === c.id ? 'on' : ''}" data-cob="${c.id}"><small class="cg">${esc(c.grupo || ' ')}</small><b>${esc(c.nombre)}<span class="badge" id="pc-${c.id}">${prCnt(d, c.id)}</span></b><span id="pt-${c.id}">${gs(prCob(d, c.id))}</span></button>`).join('');
+  const chips = cobs.map(c => `<button class="chip ${UI.cob === c.id ? 'on' : ''}" data-cob="${c.id}"><small class="cg">${esc(c.grupo || ' ')}</small><b>${esc(c.nombre)}<span class="badge" id="pc-${c.id}">${prCnt(d, c.id)}</span></b><span id="pt-${c.id}">${gs(prCob(d, c.id))}</span></button>`).join('')
+    + `<button class="chip tchip ${UI.cob === 'totales' ? 'on' : ''}" data-cob="totales"><small class="cg">Todos</small><b>Σ Totales<span class="badge">${Object.keys(d.pr || {}).reduce((s, id) => s + prCnt(d, id), 0)}</span></b><span>${gs(prTot(d))}</span></button>`;
+  if (UI.cob === 'totales') return vPrTotales(chips);
   const t = prCob(d, UI.cob), g = grupo('cobradores', UI.cob);
   return `<div class="chips" id="cobChips">${chips}</div>
   <div class="prbar noprint" id="prBar">
@@ -964,6 +1020,7 @@ function setEditMode() {
 function wPremios() {
   $$('#cobChips .chip').forEach(c => c.onclick = () => { UI.cob = c.dataset.cob; UI.edit = null; UI.lastPr = null; saveUI(); render(); });
   const on = $('#cobChips .chip.on'); if (on) on.scrollIntoView({ inline: 'center', block: 'nearest' });
+  if ($('#ptWa')) $('#ptWa').onclick = () => shareText(textoPrTotales());
   const inp = $('#prIn'); if (!inp) return;
   inp.addEventListener('input', () => { const v = digits(inp.value).slice(0, 13); inp.value = v ? fmt(+v) : ''; });
   const add = () => {
@@ -1656,6 +1713,7 @@ function textoResumen() {
 function textoDia() {
   const d = getDay(UI.fecha);
   const L = [`*CRz Control Diario*`, `📅 ${dayName(UI.fecha)} ${dmy(UI.fecha)}`, ''];
+  if (UI.tab === 'premios' && UI.cob === 'totales') return textoPrTotales();
   if (UI.tab === 'premios') {
     const arr = (d.pr && d.pr[UI.cob]) || [];
     L.push(`*🏆 Premios ${nomG('cobradores', UI.cob)}*`);
