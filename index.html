@@ -176,13 +176,14 @@ body[data-tab="deudas"] .wrap{max-width:1180px}
 .mchip button{width:22px;height:22px;border-radius:50%;background:var(--card);font-size:11px;color:var(--bad)}
 .mlbl{margin-bottom:10px;text-align:left}
 .mlbl input{margin-bottom:0!important;letter-spacing:0!important;text-align:left!important;font-size:16px!important}
-.epgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.epgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(225px,1fr));gap:10px}
 .epc{border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--bg)}
 .eph small{display:block;font-size:10.5px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px}
 .eph b{font-size:15px}
 .epr{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:8px;font-size:13px}
 .epr span{color:var(--mut);font-weight:600;white-space:nowrap}
-.epr b{font-size:16px;color:var(--pri);white-space:nowrap}
+.epr b{font-size:15px;color:var(--pri);white-space:nowrap}
+.epr span{overflow:hidden;text-overflow:ellipsis;min-width:0}
 .epr.g{border-top:1px dashed var(--line);padding-top:7px}
 .epr.g b{color:var(--gold)}
 .eps{font-size:11.5px;color:var(--mut);text-align:right;margin-top:1px}
@@ -379,6 +380,7 @@ body[data-tab="deudas"] .wrap{max-width:1180px}
 <nav class="tabs"><div class="in">
   <button data-tab="efectivo"><span class="ic">💵</span>Efectivo</button>
   <button data-tab="premios"><span class="ic">🏆</span>Premios</button>
+  <button data-tab="totales"><span class="ic">👥</span>Totales</button>
   <button data-tab="depositos"><span class="ic">🏦</span>Depósitos</button>
   <button data-tab="deudas"><span class="ic">📒</span>Deudas</button>
   <button data-tab="resumen"><span class="ic">📊</span>Resumen</button>
@@ -399,7 +401,7 @@ body[data-tab="deudas"] .wrap{max-width:1180px}
    identificador, para no chocar con las demás apps del repositorio.
    ========================================================= */
 const APP_ID = 'crz-control-diario';
-const APP_VER = '1.11.0';
+const APP_VER = '1.12.0';
 const K_DATA = APP_ID + ':data';
 const K_UI = APP_ID + ':ui';
 const K_SNAP = APP_ID + ':snapshot';
@@ -720,11 +722,12 @@ window.addEventListener('resize', setHH);
 function render() {
   $$('nav.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === UI.tab));
   document.body.dataset.tab = UI.tab;
-  $('#datebar').style.display = ['efectivo', 'premios', 'depositos', 'deudas'].includes(UI.tab) ? '' : 'none';
+  $('#datebar').style.display = ['efectivo', 'premios', 'totales', 'depositos', 'deudas'].includes(UI.tab) ? '' : 'none';
   const v = $('#view');
   requestAnimationFrame(setHH);
   if (UI.tab === 'efectivo') v.innerHTML = vEfectivo(), wEfectivo();
   else if (UI.tab === 'premios') v.innerHTML = vPremios(), wPremios();
+  else if (UI.tab === 'totales') v.innerHTML = vTotales();
   else if (UI.tab === 'depositos') v.innerHTML = vDepositos(), wDepositos();
   else if (UI.tab === 'deudas') v.innerHTML = vDeudas(), wDeudas();
   else if (UI.tab === 'resumen') v.innerHTML = vResumen(), wResumen();
@@ -763,6 +766,10 @@ function blockEfPr(d) {
     <div class="eptot"><div><span>💵 Total efectivo entregado</span><b class="money">${gs(tEf + tTr)}</b>${tTr ? `<small>Efectivo ${fmt(tEf)} · Transf. ${fmt(tTr)}</small>` : ''}</div>
       <div class="g"><span>🏆 Total premios (${tN})</span><b class="money">${gs(tPr)}</b></div></div>`;
 }
+function vTotales() {
+  const d = getDay(UI.fecha);
+  return `<div class="card" style="margin-top:14px"><h3>👥 Efectivo y premios por cobrador <span class="sub">${dayName(UI.fecha)} ${dmy(UI.fecha)}</span></h3>${blockEfPr(d)}</div>`;
+}
 function vEfectivo() {
   const d = getDay(UI.fecha);
   const ags = activos('agencias');
@@ -795,7 +802,6 @@ function vEfectivo() {
     <div class="card"><h3>🧾 Total rendido · ${esc(a.nombre)}</h3><div id="rendBox">${blockRend(d, a.id)}</div></div>`;
   }
   return `<div class="chips" id="agChips">${chips}</div>${main}
-    <div class="card"><h3>👥 Efectivo y premios por cobrador <span class="sub">${dmy(UI.fecha)}</span></h3><div id="efPr">${blockEfPr(d)}</div></div>
     <div class="card"><h3>Totales por agencia <span class="sub">${dmy(UI.fecha)}</span></h3><div id="efAgs">${blockAgs(d)}</div></div>`;
 }
 function blockRend(d, id) {
@@ -912,7 +918,6 @@ function paintEf() {
   activos('agencias').forEach(a => { const el = $('#chip-' + a.id); if (el) el.textContent = gs(rendAg(d, a.id)); });
   $('#chip-todas').textContent = gs(rendTot(d));
   $('#efAgs').innerHTML = blockAgs(d);
-  const ep = $('#efPr'); if (ep) ep.innerHTML = blockEfPr(d);
 }
 
 /* =========================================================
@@ -985,7 +990,6 @@ function vPrTotales(chips) {
       <div class="kpi"><div class="lbl">Día anterior</div><div class="v money">${gs(Y.tot)}</div><div class="s">${Y.n} premio(s) ${vs(T.tot, Y.tot)}</div></div>
     </div>
   </div>
-  <div class="card"><h3>👥 Efectivo y premios por cobrador <span class="sub">${dmy(f)}</span></h3>${blockEfPr(T.d)}</div>
   <div class="card"><h3>Detalle por cobrador <span class="sub">${dmy(f)}</span></h3>
     ${T.n ? `<div class="tscroll"><table class="tbl"><thead><tr><th class="tl">Cobrador</th><th>Cantidad</th><th>Gs.</th><th>%</th></tr></thead><tbody>${rows}</tbody>
     <tfoot><tr><td class="tl">TOTAL</td><td>${T.n}</td><td class="money">${fmt(T.tot)}</td><td>100%</td></tr></tfoot></table></div>` : '<div class="empty">Todavía no hay premios cargados este día.</div>'}
@@ -1763,6 +1767,14 @@ function textoDia() {
   const d = getDay(UI.fecha);
   const L = [`*CRz Control Diario*`, `📅 ${dayName(UI.fecha)} ${dmy(UI.fecha)}`, ''];
   if (UI.tab === 'premios' && UI.cob === 'totales') return textoPrTotales();
+  if (UI.tab === 'totales') {
+    L.push('*👥 Efectivo y premios por cobrador*', '');
+    let te = 0, tp = 0, tn = 0;
+    paresEfPr().forEach(x => { const e = x.ag ? rendAg(d, x.ag) : 0, p = x.cob ? prCob(d, x.cob) : 0, n = x.cob ? prCnt(d, x.cob) : 0; te += e; tp += p; tn += n;
+      if (e || p) { L.push(`*${x.nom}*${x.g ? ' (' + x.g + ')' : ''}`, `💵 Efectivo: ${gs(e)}`); if (x.cob) L.push(`🏆 Premios (${n}): ${gs(p)}`); L.push(''); } });
+    L.push(`*Total efectivo entregado: ${gs(te)}*`, `*Total premios (${tn}): ${gs(tp)}*`);
+    return L.join('\n');
+  }
   if (UI.tab === 'premios') {
     const arr = (d.pr && d.pr[UI.cob]) || [];
     L.push(`*🏆 Premios ${nomG('cobradores', UI.cob)}*`);
