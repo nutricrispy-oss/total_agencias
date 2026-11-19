@@ -176,6 +176,23 @@ body[data-tab="deudas"] .wrap{max-width:1180px}
 .mchip button{width:22px;height:22px;border-radius:50%;background:var(--card);font-size:11px;color:var(--bad)}
 .mlbl{margin-bottom:10px;text-align:left}
 .mlbl input{margin-bottom:0!important;letter-spacing:0!important;text-align:left!important;font-size:16px!important}
+.epgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.epc{border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--bg)}
+.eph small{display:block;font-size:10.5px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px}
+.eph b{font-size:15px}
+.epr{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:8px;font-size:13px}
+.epr span{color:var(--mut);font-weight:600;white-space:nowrap}
+.epr b{font-size:16px;color:var(--pri);white-space:nowrap}
+.epr.g{border-top:1px dashed var(--line);padding-top:7px}
+.epr.g b{color:var(--gold)}
+.eps{font-size:11.5px;color:var(--mut);text-align:right;margin-top:1px}
+.eptot{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.eptot>div{border-radius:12px;padding:10px 12px;background:var(--pri);color:var(--priTxt)}
+.eptot>div.g{background:#ca8a04;color:#fff}
+.eptot span{display:block;font-size:12px;font-weight:700;opacity:.9}
+.eptot b{display:block;font-size:20px;font-weight:800;white-space:nowrap}
+.eptot small{display:block;font-size:11.5px;opacity:.85}
+@media (max-width:480px){ .eptot{grid-template-columns:1fr} }
 .ptot{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .ptot .kpis{grid-column:1/-1}
 @media (max-width:600px){ .ptot{grid-template-columns:1fr} }
@@ -382,7 +399,7 @@ body[data-tab="deudas"] .wrap{max-width:1180px}
    identificador, para no chocar con las demás apps del repositorio.
    ========================================================= */
 const APP_ID = 'crz-control-diario';
-const APP_VER = '1.10.0';
+const APP_VER = '1.11.0';
 const K_DATA = APP_ID + ':data';
 const K_UI = APP_ID + ':ui';
 const K_SNAP = APP_ID + ':snapshot';
@@ -717,6 +734,35 @@ function render() {
 /* =========================================================
    EFECTIVO
    ========================================================= */
+/* ---------- Efectivo y premios por cobrador ----------
+   Une la agencia de Efectivo con el cobrador de Premios por el nombre
+   (Pichi ↔ Pichi, Osvaldito ↔ Osvaldito…). No se resta nada. */
+const normNom = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+function paresEfPr() {
+  const ags = activos('agencias'), cobs = activos('cobradores'), usados = new Set(), out = [];
+  ags.forEach(a => {
+    const c = cobs.find(c => !usados.has(c.id) && normNom(c.nombre) === normNom(a.nombre)) || cobs.find(c => !usados.has(c.id) && c.id === a.id);
+    if (c) usados.add(c.id);
+    out.push({ ag: a.id, cob: c ? c.id : null, nom: a.nombre, g: a.grupo || (c && c.grupo) || '' });
+  });
+  cobs.filter(c => !usados.has(c.id)).forEach(c => out.push({ ag: null, cob: c.id, nom: c.nombre, g: c.grupo || '' }));
+  return out;
+}
+function blockEfPr(d) {
+  const P = paresEfPr();
+  let tEf = 0, tTr = 0, tPr = 0, tN = 0;
+  const cards = P.map(x => {
+    const ef = x.ag ? efAg(d, x.ag).t : 0, tr = x.ag ? trAg(d, x.ag) : 0, pr = x.cob ? prCob(d, x.cob) : 0, n = x.cob ? prCnt(d, x.cob) : 0;
+    tEf += ef; tTr += tr; tPr += pr; tN += n;
+    return `<div class="epc"><div class="eph"><small>${esc(x.g || ' ')}</small><b>${esc(x.nom)}</b></div>
+      <div class="epr"><span>💵 Efectivo</span><b class="money">${x.ag ? gs(ef + tr) : '—'}</b></div>
+      ${tr ? `<div class="eps">Efectivo ${fmt(ef)} · Transf. ${fmt(tr)}</div>` : ''}
+      <div class="epr g"><span>🏆 Premios${x.cob ? ` (${n})` : ''}</span><b class="money">${x.cob ? gs(pr) : '—'}</b></div></div>`;
+  }).join('');
+  return `<div class="epgrid">${cards}</div>
+    <div class="eptot"><div><span>💵 Total efectivo entregado</span><b class="money">${gs(tEf + tTr)}</b>${tTr ? `<small>Efectivo ${fmt(tEf)} · Transf. ${fmt(tTr)}</small>` : ''}</div>
+      <div class="g"><span>🏆 Total premios (${tN})</span><b class="money">${gs(tPr)}</b></div></div>`;
+}
 function vEfectivo() {
   const d = getDay(UI.fecha);
   const ags = activos('agencias');
@@ -749,6 +795,7 @@ function vEfectivo() {
     <div class="card"><h3>🧾 Total rendido · ${esc(a.nombre)}</h3><div id="rendBox">${blockRend(d, a.id)}</div></div>`;
   }
   return `<div class="chips" id="agChips">${chips}</div>${main}
+    <div class="card"><h3>👥 Efectivo y premios por cobrador <span class="sub">${dmy(UI.fecha)}</span></h3><div id="efPr">${blockEfPr(d)}</div></div>
     <div class="card"><h3>Totales por agencia <span class="sub">${dmy(UI.fecha)}</span></h3><div id="efAgs">${blockAgs(d)}</div></div>`;
 }
 function blockRend(d, id) {
@@ -865,6 +912,7 @@ function paintEf() {
   activos('agencias').forEach(a => { const el = $('#chip-' + a.id); if (el) el.textContent = gs(rendAg(d, a.id)); });
   $('#chip-todas').textContent = gs(rendTot(d));
   $('#efAgs').innerHTML = blockAgs(d);
+  const ep = $('#efPr'); if (ep) ep.innerHTML = blockEfPr(d);
 }
 
 /* =========================================================
@@ -937,6 +985,7 @@ function vPrTotales(chips) {
       <div class="kpi"><div class="lbl">Día anterior</div><div class="v money">${gs(Y.tot)}</div><div class="s">${Y.n} premio(s) ${vs(T.tot, Y.tot)}</div></div>
     </div>
   </div>
+  <div class="card"><h3>👥 Efectivo y premios por cobrador <span class="sub">${dmy(f)}</span></h3>${blockEfPr(T.d)}</div>
   <div class="card"><h3>Detalle por cobrador <span class="sub">${dmy(f)}</span></h3>
     ${T.n ? `<div class="tscroll"><table class="tbl"><thead><tr><th class="tl">Cobrador</th><th>Cantidad</th><th>Gs.</th><th>%</th></tr></thead><tbody>${rows}</tbody>
     <tfoot><tr><td class="tl">TOTAL</td><td>${T.n}</td><td class="money">${fmt(T.tot)}</td><td>100%</td></tr></tfoot></table></div>` : '<div class="empty">Todavía no hay premios cargados este día.</div>'}
